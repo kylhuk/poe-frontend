@@ -4,6 +4,30 @@ import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/h
 import { api } from '@/services/api';
 import type { StashTab, StashItem } from '@/types/api';
 import { cn } from '@/lib/utils';
+import {
+  Coins, Diamond, CircleDot, FlaskConical, Sword, ShieldHalf,
+  FileText, Shirt, HardHat, Crown, type LucideIcon,
+} from 'lucide-react';
+
+const ITEM_CLASS_ICONS: Record<string, LucideIcon> = {
+  Currency: Coins,
+  Gem: Diamond,
+  Jewel: CircleDot,
+  Flask: FlaskConical,
+  Weapon: Sword,
+  Shield: ShieldHalf,
+  'Body Armour': Shirt,
+  Helmet: HardHat,
+  Blueprint: FileText,
+  Amulet: Crown,
+};
+
+const RARITY_BORDER: Record<string, string> = {
+  normal: 'border-l-muted-foreground',
+  magic: 'border-l-info',
+  rare: 'border-l-exalt',
+  unique: 'border-l-chaos',
+};
 
 function getGridSize(type: StashTab['type']) {
   return type === 'quad' ? 24 : 12;
@@ -108,17 +132,23 @@ function StashCell({ item, isQuad, style }: { item: StashItem; isQuad: boolean; 
   const healthLabel = { good: 'Well Priced', ok: 'Could Be Better', bad: 'Mispriced' };
   const healthDot = { good: 'bg-success', ok: 'bg-warning', bad: 'bg-destructive' };
 
+  const IconComp = item.itemClass ? ITEM_CLASS_ICONS[item.itemClass] : null;
+
   return (
     <HoverCard openDelay={100} closeDelay={50}>
       <HoverCardTrigger asChild>
         <div
           className={cn(
-            'border flex flex-col items-center justify-center p-0.5 cursor-pointer transition-colors',
+            'border border-l-2 flex flex-col items-center justify-center p-0.5 cursor-pointer transition-colors',
             healthColor[item.priceHealth],
+            RARITY_BORDER[item.rarity] || '',
             isQuad ? 'min-h-[20px]' : 'min-h-[40px]'
           )}
           style={style}
         >
+          {IconComp && !isQuad && (
+            <IconComp size={12} className="text-muted-foreground/60 mb-0.5 shrink-0" />
+          )}
           <span className={cn('leading-tight text-center truncate w-full', rarityColor[item.rarity], isQuad ? 'text-[7px]' : 'text-[10px]')}>
             {item.name}
           </span>
@@ -129,10 +159,18 @@ function StashCell({ item, isQuad, style }: { item: StashItem; isQuad: boolean; 
       </HoverCardTrigger>
       <HoverCardContent side="right" className="w-56 p-3 space-y-2 bg-card border-border">
         <div className="space-y-1">
-          <p className={cn('font-semibold text-sm', rarityColor[item.rarity])}>{item.name}</p>
-          <span className={cn('text-[10px] px-1.5 py-0.5 rounded border', rarityColor[item.rarity], 'border-current/20 opacity-80')}>
-            {rarityLabel[item.rarity]}
-          </span>
+          <div className="flex items-center gap-1.5">
+            {IconComp && <IconComp size={14} className={rarityColor[item.rarity]} />}
+            <p className={cn('font-semibold text-sm', rarityColor[item.rarity])}>{item.name}</p>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className={cn('text-[10px] px-1.5 py-0.5 rounded border', rarityColor[item.rarity], 'border-current/20 opacity-80')}>
+              {rarityLabel[item.rarity]}
+            </span>
+            {item.itemClass && (
+              <span className="text-[10px] text-muted-foreground">{item.itemClass}</span>
+            )}
+          </div>
         </div>
         <div className="space-y-1 text-xs">
           <div className="flex justify-between">
