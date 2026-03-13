@@ -169,16 +169,15 @@
 }
 
 .stash-item-cell {
-  background: hsl(220 15% 7%);
   position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: background 0.15s ease;
+  transition: filter 0.15s ease;
 }
 
 .stash-item-cell:hover {
-  background: hsl(220 12% 12%);
+  filter: brightness(1.3);
 }
