@@ -152,6 +152,7 @@ export interface StashItem {
   currency: string;
   priceHealth: PriceHealth;
   rarity: 'normal' | 'magic' | 'rare' | 'unique';
+  itemClass?: string;
   iconUrl?: string;
 }
 
