@@ -1,4 +1,4 @@
-import { forwardRef, useEffect, useState } from 'react';
+import React, { forwardRef, useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { StatusDot, Freshness } from '@/components/shared/StatusIndicators';
 import { RenderState } from '@/components/shared/RenderState';
