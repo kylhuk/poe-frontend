@@ -15,7 +15,6 @@ interface SessionPayload {
 
 interface AuthContextValue {
   user: AuthUser | null;
-  login: () => void;
   logout: () => void;
   refreshSession: () => Promise<void>;
   sessionState: 'connected' | 'disconnected' | 'session_expired';
@@ -24,7 +23,6 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue>({
   user: null,
-  login: () => {},
   logout: () => {},
   refreshSession: async () => {},
   sessionState: 'disconnected',
@@ -69,26 +67,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     refreshSession().finally(() => setIsLoading(false));
   }, [refreshSession]);
 
-  useEffect(() => {
-    const handler = (event: MessageEvent) => {
-      if (event.data?.type === 'poe_auth_callback_complete') {
-        void refreshSession();
-      }
-    };
-    window.addEventListener('message', handler);
-    return () => window.removeEventListener('message', handler);
-  }, [refreshSession]);
-
-  const login = useCallback(() => {
-    const authUrl = `${API_BASE}/api/v1/auth/login`;
-    const width = 520;
-    const height = 720;
-    const left = window.screenX + (window.innerWidth - width) / 2;
-    const top = window.screenY + (window.innerHeight - height) / 2;
-    window.open(authUrl, 'poe_auth_popup', `width=${width},height=${height},left=${left},top=${top},popup=yes`);
-  }, []);
-
   const logout = useCallback(() => {
+    // Clear the POESESSID cookie
+    document.cookie = 'POESESSID=; path=/; max-age=0';
     fetch(`${API_BASE}/api/v1/auth/logout`, {
       method: 'POST',
       credentials: 'include',
@@ -99,7 +80,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, refreshSession, sessionState, isLoading }}>
+    <AuthContext.Provider value={{ user, logout, refreshSession, sessionState, isLoading }}>
       {children}
     </AuthContext.Provider>
   );
