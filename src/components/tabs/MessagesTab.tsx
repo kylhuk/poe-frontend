@@ -24,7 +24,7 @@ const MessagesTab = forwardRef<HTMLDivElement, Record<string, never>>(function M
   const [filter, setFilter] = useState<MessageSeverity | 'all'>('all');
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
+  const load = useCallback(() => {
     api.getMessages()
       .then((rows) => {
         setMessages(rows);
@@ -34,6 +34,12 @@ const MessagesTab = forwardRef<HTMLDivElement, Record<string, never>>(function M
         setError(err instanceof Error ? err.message : 'Backend unavailable');
       });
   }, []);
+
+  useEffect(() => {
+    load();
+    const iv = setInterval(load, 30_000);
+    return () => clearInterval(iv);
+  }, [load]);
 
   const filtered = filter === 'all' ? messages : messages.filter(m => m.severity === filter);
   const formatTime = (iso: string) => {
