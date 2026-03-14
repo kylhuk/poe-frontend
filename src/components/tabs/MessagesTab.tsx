@@ -57,7 +57,7 @@ const MessagesTab = forwardRef<HTMLDivElement, Record<string, never>>(function M
   };
 
   return (
-    <div className="space-y-4" data-testid="panel-messages-root">
+    <div ref={ref} className="space-y-4" data-testid="panel-messages-root">
       <div className="flex items-center justify-between flex-wrap gap-2">
         <h2 className="text-lg font-semibold font-sans text-foreground">Messages & Alerts</h2>
         <div className="flex items-center gap-1">
