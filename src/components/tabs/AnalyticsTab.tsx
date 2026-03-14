@@ -11,6 +11,7 @@ import { CheckCircle, XCircle, ArrowRight } from 'lucide-react';
 
 const AnalyticsTab = forwardRef<HTMLDivElement, Record<string, never>>(function AnalyticsTab(_props, ref) {
   return (
+    <div ref={ref}>
     <Tabs defaultValue="fairvalue" className="space-y-4">
       <TabsList className="flex-wrap h-auto gap-1 bg-secondary/50 p-1">
         <TabsTrigger data-testid="analytics-tab-fairvalue" value="fairvalue" className="text-xs">Ingestion</TabsTrigger>
@@ -32,8 +33,12 @@ const AnalyticsTab = forwardRef<HTMLDivElement, Record<string, never>>(function 
       <TabsContent data-testid="analytics-panel-session" value="session"><SessionPanel /></TabsContent>
       <TabsContent data-testid="analytics-panel-gear" value="gear"><GearSwapPanel /></TabsContent>
     </Tabs>
+    </div>
   );
-}
+});
+
+AnalyticsTab.displayName = 'AnalyticsTab';
+export default AnalyticsTab;
 
 function FairValuePanel() {
   const [items, setItems] = useState<FairValueItem[]>([]);

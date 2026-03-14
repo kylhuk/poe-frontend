@@ -196,7 +196,10 @@ const StashViewerTab = forwardRef<HTMLDivElement, Record<string, never>>(functio
       </Collapsible>
     </div>
   );
-}
+});
+
+StashViewerTab.displayName = 'StashViewerTab';
+export default StashViewerTab;
 
 function StashCell({ item, gridSize, style }: { item: StashItem; gridSize: number; style: React.CSSProperties }) {
   const isQuad = gridSize === 24;

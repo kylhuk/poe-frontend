@@ -111,4 +111,7 @@ const MessagesTab = forwardRef<HTMLDivElement, Record<string, never>>(function M
       </div>
     </div>
   );
-}
+});
+
+MessagesTab.displayName = 'MessagesTab';
+export default MessagesTab;

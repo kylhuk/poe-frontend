@@ -94,4 +94,7 @@ const PriceCheckTab = forwardRef<HTMLDivElement, Record<string, never>>(function
       )}
     </div>
   );
-}
+});
+
+PriceCheckTab.displayName = 'PriceCheckTab';
+export default PriceCheckTab;

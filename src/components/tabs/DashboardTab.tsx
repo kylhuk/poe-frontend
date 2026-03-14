@@ -80,8 +80,10 @@ const DashboardTab = forwardRef<HTMLDivElement, Record<string, never>>(function 
       </Card>
     </div>
   );
-}
+});
 
+DashboardTab.displayName = 'DashboardTab';
+export default DashboardTab;
 function SummaryCard({ icon, label, value, accent }: { icon: React.ReactNode; label: string; value: string; accent?: string }) {
   return (
     <Card className={accent === 'destructive' ? 'glow-destructive' : accent === 'warning' ? 'glow-gold' : ''}>
