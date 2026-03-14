@@ -15,6 +15,7 @@ interface SessionPayload {
 
 interface AuthContextValue {
   user: AuthUser | null;
+  login: (poeSessionId: string) => Promise<void>;
   logout: () => void;
   refreshSession: () => Promise<void>;
   sessionState: 'connected' | 'disconnected' | 'session_expired';
@@ -23,6 +24,7 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue>({
   user: null,
+  login: async () => {},
   logout: () => {},
   refreshSession: async () => {},
   sessionState: 'disconnected',
@@ -67,9 +69,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     refreshSession().finally(() => setIsLoading(false));
   }, [refreshSession]);
 
+  const login = useCallback(async (poeSessionId: string) => {
+    try {
+      const response = await fetch(`${API_BASE}/api/v1/auth/session`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ poeSessionId }),
+        credentials: 'include',
+      });
+      if (!response.ok) {
+        logApiError({ path: '/api/v1/auth/session', statusCode: response.status, errorCode: 'auth_login', message: `Login failed (${response.status})` });
+      }
+    } catch (err) {
+      logApiError({ path: '/api/v1/auth/session', errorCode: 'network_error', message: err instanceof Error ? err.message : 'Network error' });
+    }
+    await refreshSession();
+  }, [refreshSession]);
+
   const logout = useCallback(() => {
-    // Clear the POESESSID cookie
-    document.cookie = 'POESESSID=; path=/; max-age=0';
     fetch(`${API_BASE}/api/v1/auth/logout`, {
       method: 'POST',
       credentials: 'include',
@@ -80,7 +99,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, logout, refreshSession, sessionState, isLoading }}>
+    <AuthContext.Provider value={{ user, login, logout, refreshSession, sessionState, isLoading }}>
       {children}
     </AuthContext.Provider>
   );

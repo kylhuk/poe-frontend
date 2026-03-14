@@ -18,6 +18,46 @@ import type {
   StashTab,
 } from '@/types/api';
 
+export interface IngestionRow {
+  queue_key: string;
+  feed_kind: string;
+  status: string;
+  last_ingest_at: string;
+}
+
+export interface ScannerRow {
+  strategy_id: string;
+  recommendation_count: number;
+}
+
+export interface AlertRow {
+  alert_id: string;
+  recorded_at: string;
+  status: string;
+  item_or_market_key: string;
+}
+
+export interface BacktestRow {
+  status: string;
+  count: number;
+}
+
+export interface BacktestAnalytics {
+  rows: BacktestRow[];
+  summaryRows: BacktestRow[];
+  detailRows: BacktestRow[];
+  totals: { summary: number; detail: number };
+}
+
+export interface MlAnalytics {
+  status: Record<string, unknown>;
+}
+
+export interface ReportAnalytics {
+  status: string;
+  report: Record<string, unknown>;
+}
+
 type ApiErrorPayload = {
   error?: {
     code?: string;
@@ -81,6 +121,33 @@ async function primaryLeague(): Promise<string> {
   return cachedPrimaryLeague;
 }
 
+export async function getAnalyticsIngestion() {
+  const payload = await request<{ rows: IngestionRow[] }>('/api/v1/ops/analytics/ingestion');
+  return payload.rows;
+}
+
+export async function getAnalyticsScanner() {
+  const payload = await request<{ rows: ScannerRow[] }>('/api/v1/ops/analytics/scanner');
+  return payload.rows;
+}
+
+export async function getAnalyticsAlerts() {
+  const payload = await request<{ rows: AlertRow[] }>('/api/v1/ops/analytics/alerts');
+  return payload.rows;
+}
+
+export async function getAnalyticsBacktests() {
+  return request<BacktestAnalytics>('/api/v1/ops/analytics/backtests');
+}
+
+export async function getAnalyticsMl() {
+  return request<MlAnalytics>('/api/v1/ops/analytics/ml');
+}
+
+export async function getAnalyticsReport() {
+  return request<ReportAnalytics>('/api/v1/ops/analytics/report');
+}
+
 export const api: ApiService = {
   async getScannerSummary() {
     return request<ScannerSummary>('/api/v1/ops/scanner/summary');
@@ -136,145 +203,64 @@ export const api: ApiService = {
   },
 
   async getFairValueItems() {
-    const payload = await request<{ rows: Array<Record<string, unknown>> }>(
-      '/api/v1/ops/analytics/ingestion'
-    );
-    return payload.rows.map((row, index) => ({
-      id: String(row.queue_key || `queue-${index}`),
-      itemName: String(row.queue_key || 'Queue'),
-      fairValue: 0,
-      publicStashFloor: 0,
-      exchangeImpliedMid: 0,
-      sparkline: [],
-      spread: 0,
-      liquidity: 'low',
-      confidence: 0,
-      updatedAt: String(row.last_ingest_at || new Date().toISOString()),
-    })) as FairValueItem[];
+    return [];
   },
 
   async getStaleListings() {
-    const recommendations = await this.getScannerRecommendations();
-    return recommendations.map((row, index) => ({
-      id: `scanner-${index}`,
-      itemName: String(row.itemOrMarketKey || 'scanner'),
-      askPrice: Number(row.maxBuy || 0),
-      fairValue: Number(row.expectedProfitChaos || 0),
-      discountPct: 0,
-      firstSeen: String(row.recordedAt || new Date().toISOString()),
-      repricingCount: 0,
-      sellerDormancyScore: 0,
-      expectedNetMargin: Number(row.expectedProfitChaos || 0),
-      expectedSaleTime: String(row.expectedHoldTime || 'n/a'),
-      route: 'public relist',
-      grade: Number(row.expectedProfitChaos || 0) > 0 ? 'green' : 'yellow',
-    })) as StaleListingOpp[];
+    return [];
   },
 
   async getGemStates() {
-    const payload = await request<{ rows: Array<Record<string, unknown>> }>(
-      '/api/v1/ops/analytics/alerts'
-    );
-    return payload.rows.map((row, index) => ({
-      id: String(row.alert_id || `alert-${index}`),
-      gemName: String(row.item_or_market_key || 'Alert'),
-      level: 0,
-      quality: 0,
-      corrupted: false,
-      vaalState: null,
-      imbuedOutcome: null,
-      supportPoolSize: 0,
-      currentAsk: 0,
-      modelFairValue: 0,
-      anomalyScore: 0,
-      comparables: [],
-      updatedAt: String(row.recorded_at || new Date().toISOString()),
-    })) as GemState[];
+    return [];
   },
 
   async getHeistDrops() {
-    const payload = await request<{ rows: Array<Record<string, unknown>> }>(
-      '/api/v1/ops/analytics/backtests'
-    );
-    return payload.rows.map((row, index) => ({
-      id: `backtest-${index}`,
-      itemName: String(row.status || 'backtest'),
-      itemClass: 'Backtest',
-      bin: 'ignore',
-      estimatedValueBand: String(row.count || 0),
-      reason: 'Backtest status distribution',
-    })) as HeistDrop[];
+    return [];
   },
 
   async getShipmentRecommendation() {
-    const payload = await request<{ status?: Record<string, unknown> }>(
-      '/api/v1/ops/analytics/ml'
-    );
     return {
-      chosenPort: 'ML status',
-      resourceMix: { hotspots: Number((payload.status?.route_hotspots as unknown[])?.length || 0) },
+      chosenPort: 'n/a',
+      resourceMix: {},
       dustToAdd: 0,
       expectedValue: 0,
       expectedValuePerHour: 0,
       expectedRiskLoss: 0,
-      whyThisWon: String(payload.status?.status || 'no_status'),
+      whyThisWon: 'n/a',
       updatedAt: new Date().toISOString(),
-    } satisfies ShipmentRecommendation;
+    };
   },
 
   async getGoldShadowPrice() {
-    const payload = await request<{ report?: Record<string, unknown> }>(
-      '/api/v1/ops/analytics/report'
-    );
     return {
-      chaosPerGold: Number(payload.report?.realized_pnl_chaos || 0),
+      chaosPerGold: 0,
       feeInChaos: 0,
-      denominationHint: 'daily_report',
+      denominationHint: 'n/a',
       updatedAt: new Date().toISOString(),
-    } satisfies GoldShadowData;
+    };
   },
 
   async getSessionRecommendation() {
-    const messages = await this.getMessages();
-    const critical = messages.find((m) => m.severity === 'critical');
     return {
-      recommended: critical ? 'trade batch' : 'map',
-      triggerReason: critical?.message || 'No critical alerts',
+      recommended: 'map',
+      triggerReason: 'n/a',
       updatedAt: new Date().toISOString(),
-    } satisfies SessionRecommendation;
+    };
   },
 
   async simulateGearSwap(_candidateItem) {
     return {
       current: {
-        fireRes: 0,
-        coldRes: 0,
-        lightningRes: 0,
-        chaosRes: 0,
-        spellSuppression: 0,
-        life: 0,
-        str: 0,
-        dex: 0,
-        int: 0,
-        evasionMasteryActive: false,
-        auraFit: false,
+        fireRes: 0, coldRes: 0, lightningRes: 0, chaosRes: 0, spellSuppression: 0,
+        life: 0, str: 0, dex: 0, int: 0, evasionMasteryActive: false, auraFit: false,
       },
       simulated: {
-        fireRes: 0,
-        coldRes: 0,
-        lightningRes: 0,
-        chaosRes: 0,
-        spellSuppression: 0,
-        life: 0,
-        str: 0,
-        dex: 0,
-        int: 0,
-        evasionMasteryActive: false,
-        auraFit: false,
+        fireRes: 0, coldRes: 0, lightningRes: 0, chaosRes: 0, spellSuppression: 0,
+        life: 0, str: 0, dex: 0, int: 0, evasionMasteryActive: false, auraFit: false,
       },
-      failStates: ['Live simulation unavailable in phase 1'],
+      failStates: ['Not supported'],
       passStates: [],
-    } satisfies GearSwapResult;
+    };
   },
 
   async priceCheck(req) {

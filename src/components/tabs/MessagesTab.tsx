@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils';
 import { Filter } from 'lucide-react';
 import { RenderState } from '@/components/shared/RenderState';
 import { useMouseGlow } from '@/hooks/useMouseGlow';
+import { useToast } from '@/hooks/use-toast';
 
 const severityStyles: Record<MessageSeverity, string> = {
   critical: 'border-l-destructive bg-destructive/5',
@@ -25,6 +26,7 @@ const MessagesTab = forwardRef<HTMLDivElement, Record<string, never>>(function M
   const [filter, setFilter] = useState<MessageSeverity | 'all'>('all');
   const [error, setError] = useState<string | null>(null);
   const mouseGlow = useMouseGlow();
+  const { toast } = useToast();
 
   const load = useCallback(() => {
     api.getMessages()
@@ -52,9 +54,11 @@ const MessagesTab = forwardRef<HTMLDivElement, Record<string, never>>(function M
   const acknowledge = async (id: string) => {
     try {
       await api.ackAlert(id);
+      toast({ title: 'Success', description: 'Alert acknowledged' });
       load();
-    } catch {
-      // error already logged by api layer
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to acknowledge alert';
+      toast({ title: 'Action failed', description: message });
     }
   };
 

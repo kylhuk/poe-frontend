@@ -1,44 +1,25 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useAuth } from '@/services/auth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Settings, Eye, EyeOff, Save, Trash2, CheckCircle2, XCircle } from 'lucide-react';
-
-function getCookie(name: string): string {
-  const match = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'));
-  return match ? decodeURIComponent(match[2]) : '';
-}
-
-function setCookie(name: string, value: string, maxAge: number) {
-  document.cookie = `${name}=${encodeURIComponent(value)}; path=/; SameSite=Lax; max-age=${maxAge}`;
-}
-
-function deleteCookie(name: string) {
-  document.cookie = `${name}=; path=/; max-age=0`;
-}
+import { Settings, Eye, EyeOff, Save, Trash2, CheckCircle2, XCircle, AlertCircle } from 'lucide-react';
 
 const UserMenu = () => {
-  const { user, logout, refreshSession, sessionState, isLoading } = useAuth();
+  const { user, login, logout, sessionState, isLoading } = useAuth();
   const [value, setValue] = useState('');
   const [showValue, setShowValue] = useState(false);
   const [open, setOpen] = useState(false);
 
-  useEffect(() => {
-    if (open) {
-      setValue(getCookie('POESESSID'));
-    }
-  }, [open]);
-
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!value.trim()) return;
-    setCookie('POESESSID', value.trim(), 31536000);
-    void refreshSession();
+    await login(value.trim());
+    setValue('');
+    setOpen(false);
   };
 
   const handleClear = () => {
-    deleteCookie('POESESSID');
     setValue('');
     logout();
   };
@@ -62,8 +43,10 @@ const UserMenu = () => {
         </PopoverTrigger>
         <PopoverContent align="end" className="w-72 space-y-3 border-primary/30 animate-scale-fade-in">
           <div className="flex items-center gap-2 text-xs">
-            {connected ? (
+            {sessionState === 'connected' && user ? (
               <><CheckCircle2 className="h-3.5 w-3.5 text-primary" /><span className="text-muted-foreground">Connected as <strong className="text-foreground">{user.accountName}</strong></span></>
+            ) : sessionState === 'session_expired' ? (
+              <><AlertCircle className="h-3.5 w-3.5 text-warning" /><span className="text-muted-foreground">Session expired</span></>
             ) : (
               <><XCircle className="h-3.5 w-3.5 text-destructive" /><span className="text-muted-foreground">Not connected</span></>
             )}
