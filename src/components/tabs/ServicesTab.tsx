@@ -24,13 +24,18 @@ const ServicesTab = forwardRef<HTMLDivElement, Record<string, never>>(function S
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
 
-  const load = () => api.getServices().then((next) => {
+  const load = useCallback(() => api.getServices().then((next) => {
     setServices(next);
     setError(null);
   }).catch((err: unknown) => {
     setError(err instanceof Error ? err.message : 'Backend unavailable');
-  });
-  useEffect(() => { load(); }, []);
+  }), []);
+
+  useEffect(() => {
+    load();
+    const iv = setInterval(load, 30_000);
+    return () => clearInterval(iv);
+  }, [load]);
 
   const act = async (id: string, action: 'start' | 'stop' | 'restart') => {
     setLoading(l => ({ ...l, [id]: true }));
