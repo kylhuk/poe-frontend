@@ -71,7 +71,7 @@ const API_SCHEMA = `{
   ]
 }`;
 
-export default function StashViewerTab() {
+const StashViewerTab = forwardRef<HTMLDivElement, Record<string, never>>(function StashViewerTab(_props, ref) {
   const [tabs, setTabs] = useState<StashTab[]>([]);
   const [status, setStatus] = useState<string>('loading');
   const [activeTab, setActiveTab] = useState(0);
