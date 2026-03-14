@@ -111,7 +111,7 @@ const StashViewerTab = forwardRef<HTMLDivElement, Record<string, never>>(functio
               'px-4 py-1.5 text-xs font-display tracking-wide border border-b-0 transition-all relative -mb-px',
               i === activeTab
                 ? 'bg-gold-dim/30 text-gold-bright border-gold-dim z-10'
-                : 'bg-[hsl(220,14%,8%)] text-muted-foreground border-gold-dim/30 hover:text-gold hover:bg-gold-dim/10'
+                : 'bg-card text-muted-foreground border-gold-dim/30 hover:text-gold hover:bg-gold-dim/10'
             )}
           >
             {t.name}
@@ -188,7 +188,7 @@ const StashViewerTab = forwardRef<HTMLDivElement, Record<string, never>>(functio
             >
               <Copy className="h-3 w-3" /> Copy
             </Button>
-            <pre className="bg-[hsl(220,14%,6%)] border border-gold-dim/20 rounded p-4 text-[11px] font-mono text-muted-foreground overflow-x-auto whitespace-pre">
+            <pre className="bg-background border border-gold-dim/20 rounded p-4 text-[11px] font-mono text-muted-foreground overflow-x-auto whitespace-pre">
               {API_SCHEMA}
             </pre>
           </div>

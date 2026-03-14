@@ -14,14 +14,14 @@ const AnalyticsTab = forwardRef<HTMLDivElement, Record<string, never>>(function 
     <div ref={ref}>
     <Tabs defaultValue="fairvalue" className="space-y-4">
       <TabsList className="flex-wrap h-auto gap-1 bg-secondary/50 p-1">
-        <TabsTrigger data-testid="analytics-tab-fairvalue" value="fairvalue" className="text-xs">Ingestion</TabsTrigger>
-        <TabsTrigger data-testid="analytics-tab-stale" value="stale" className="text-xs">Scanner</TabsTrigger>
-        <TabsTrigger data-testid="analytics-tab-gem" value="gem" className="text-xs">Alerts</TabsTrigger>
-        <TabsTrigger data-testid="analytics-tab-heist" value="heist" className="text-xs">Backtests</TabsTrigger>
-        <TabsTrigger data-testid="analytics-tab-shipment" value="shipment" className="text-xs">ML</TabsTrigger>
-        <TabsTrigger data-testid="analytics-tab-gold" value="gold" className="text-xs">Reports</TabsTrigger>
-        <TabsTrigger data-testid="analytics-tab-session" value="session" className="text-xs">Session</TabsTrigger>
-        <TabsTrigger data-testid="analytics-tab-gear" value="gear" className="text-xs">Diagnostics</TabsTrigger>
+        <TabsTrigger data-testid="analytics-tab-fairvalue" value="fairvalue" className="tab-game text-xs">Ingestion</TabsTrigger>
+        <TabsTrigger data-testid="analytics-tab-stale" value="stale" className="tab-game text-xs">Scanner</TabsTrigger>
+        <TabsTrigger data-testid="analytics-tab-gem" value="gem" className="tab-game text-xs">Alerts</TabsTrigger>
+        <TabsTrigger data-testid="analytics-tab-heist" value="heist" className="tab-game text-xs">Backtests</TabsTrigger>
+        <TabsTrigger data-testid="analytics-tab-shipment" value="shipment" className="tab-game text-xs">ML</TabsTrigger>
+        <TabsTrigger data-testid="analytics-tab-gold" value="gold" className="tab-game text-xs">Reports</TabsTrigger>
+        <TabsTrigger data-testid="analytics-tab-session" value="session" className="tab-game text-xs">Session</TabsTrigger>
+        <TabsTrigger data-testid="analytics-tab-gear" value="gear" className="tab-game text-xs">Diagnostics</TabsTrigger>
       </TabsList>
 
       <TabsContent data-testid="analytics-panel-fairvalue" value="fairvalue"><FairValuePanel /></TabsContent>
@@ -47,7 +47,7 @@ function FairValuePanel() {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
       {items.map(item => (
-        <Card key={item.id}>
+        <Card key={item.id} className="card-game">
           <CardHeader className="pb-2">
             <div className="flex items-center justify-between">
               <CardTitle className="text-sm font-sans">{item.itemName}</CardTitle>
