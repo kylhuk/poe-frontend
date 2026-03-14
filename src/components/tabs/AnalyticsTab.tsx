@@ -9,7 +9,7 @@ import type { FairValueItem, StaleListingOpp, GemState, HeistDrop, ShipmentRecom
 import { LineChart, Line, ResponsiveContainer, YAxis } from 'recharts';
 import { CheckCircle, XCircle, ArrowRight } from 'lucide-react';
 
-export default function AnalyticsTab() {
+const AnalyticsTab = forwardRef<HTMLDivElement, Record<string, never>>(function AnalyticsTab(_props, ref) {
   return (
     <Tabs defaultValue="fairvalue" className="space-y-4">
       <TabsList className="flex-wrap h-auto gap-1 bg-secondary/50 p-1">

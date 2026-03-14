@@ -125,4 +125,7 @@ const ServicesTab = forwardRef<HTMLDivElement, Record<string, never>>(function S
       </div>
     </div>
   );
-}
+});
+
+ServicesTab.displayName = 'ServicesTab';
+export default ServicesTab;
