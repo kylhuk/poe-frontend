@@ -1,36 +1,105 @@
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/services/auth';
 import { Button } from '@/components/ui/button';
-import { LogIn, LogOut, User } from 'lucide-react';
-import { RenderState } from '@/components/shared/RenderState';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Settings, Eye, EyeOff, Save, Trash2, CheckCircle2, XCircle } from 'lucide-react';
+
+function getCookie(name: string): string {
+  const match = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'));
+  return match ? decodeURIComponent(match[2]) : '';
+}
+
+function setCookie(name: string, value: string, maxAge: number) {
+  document.cookie = `${name}=${encodeURIComponent(value)}; path=/; SameSite=Lax; max-age=${maxAge}`;
+}
+
+function deleteCookie(name: string) {
+  document.cookie = `${name}=; path=/; max-age=0`;
+}
 
 const UserMenu = () => {
-  const { user, login, logout, isLoading, sessionState } = useAuth();
+  const { user, logout, refreshSession, sessionState, isLoading } = useAuth();
+  const [value, setValue] = useState('');
+  const [showValue, setShowValue] = useState(false);
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    if (open) {
+      setValue(getCookie('POESESSID'));
+    }
+  }, [open]);
+
+  const handleSave = () => {
+    if (!value.trim()) return;
+    setCookie('POESESSID', value.trim(), 31536000);
+    void refreshSession();
+  };
+
+  const handleClear = () => {
+    deleteCookie('POESESSID');
+    setValue('');
+    logout();
+  };
 
   if (isLoading) return null;
 
-  if (sessionState === 'session_expired') {
-    return <RenderState kind="session_expired" message="Session expired, login again" />;
-  }
-
-  if (!user) {
-    return (
-      <Button data-testid="auth-login" variant="outline" size="sm" onClick={login} className="gap-1.5 text-xs">
-        <LogIn className="h-3.5 w-3.5" />
-        Login via PoE
-      </Button>
-    );
-  }
+  const connected = sessionState === 'connected' && !!user;
 
   return (
-    <div className="flex items-center gap-2" data-testid="auth-connected">
-      <div className="flex items-center gap-1.5 text-xs text-foreground">
-        <User className="h-3.5 w-3.5 text-primary" />
-        <span className="font-mono">{user.accountName}</span>
-      </div>
-      <Button data-testid="auth-logout" variant="ghost" size="sm" onClick={logout} className="gap-1 text-xs text-muted-foreground hover:text-destructive">
-        <LogOut className="h-3.5 w-3.5" />
-        Logout
-      </Button>
+    <div className="flex items-center gap-2">
+      {connected && (
+        <span className="text-xs font-mono text-foreground" data-testid="auth-connected">
+          {user.accountName}
+        </span>
+      )}
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <Button variant="ghost" size="icon" className="h-8 w-8" data-testid="settings-trigger">
+            <Settings className="h-4 w-4" />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent align="end" className="w-72 space-y-3">
+          <div className="flex items-center gap-2 text-xs">
+            {connected ? (
+              <><CheckCircle2 className="h-3.5 w-3.5 text-green-500" /><span className="text-muted-foreground">Connected as <strong className="text-foreground">{user.accountName}</strong></span></>
+            ) : (
+              <><XCircle className="h-3.5 w-3.5 text-destructive" /><span className="text-muted-foreground">Not connected</span></>
+            )}
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="poesessid" className="text-xs">POESESSID</Label>
+            <div className="relative">
+              <Input
+                id="poesessid"
+                type={showValue ? 'text' : 'password'}
+                value={value}
+                onChange={(e) => setValue(e.target.value)}
+                placeholder="Paste your POESESSID"
+                className="pr-8 text-xs h-8 font-mono"
+              />
+              <button
+                type="button"
+                onClick={() => setShowValue(!showValue)}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              >
+                {showValue ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+              </button>
+            </div>
+          </div>
+
+          <div className="flex gap-2">
+            <Button size="sm" className="flex-1 gap-1 text-xs h-7" onClick={handleSave} disabled={!value.trim()}>
+              <Save className="h-3 w-3" /> Save
+            </Button>
+            <Button size="sm" variant="destructive" className="gap-1 text-xs h-7" onClick={handleClear}>
+              <Trash2 className="h-3 w-3" /> Clear
+            </Button>
+          </div>
+        </PopoverContent>
+      </Popover>
     </div>
   );
 };
