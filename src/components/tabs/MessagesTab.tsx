@@ -19,7 +19,7 @@ const severityDot: Record<MessageSeverity, string> = {
   info: 'bg-info',
 };
 
-export default function MessagesTab() {
+const MessagesTab = forwardRef<HTMLDivElement, Record<string, never>>(function MessagesTab(_props, ref) {
   const [messages, setMessages] = useState<AppMessage[]>([]);
   const [filter, setFilter] = useState<MessageSeverity | 'all'>('all');
   const [error, setError] = useState<string | null>(null);
