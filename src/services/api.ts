@@ -30,6 +30,7 @@ type ContractPayload = {
 };
 
 import { API_BASE } from './config';
+import { logApiError } from './apiErrorLog';
 const API_KEY = import.meta.env.VITE_API_KEY as string | undefined;
 
 let cachedPrimaryLeague: string | null = null;
