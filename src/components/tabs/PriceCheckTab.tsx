@@ -32,7 +32,7 @@ const PriceCheckTab = forwardRef<HTMLDivElement, Record<string, never>>(function
   };
 
   return (
-    <div className="max-w-2xl mx-auto space-y-6" data-testid="panel-pricecheck-root">
+    <div ref={ref} className="max-w-2xl mx-auto space-y-6" data-testid="panel-pricecheck-root">
       <div className="space-y-3">
         <h2 className="text-lg font-semibold font-sans text-foreground">Price Check</h2>
         <p className="text-xs text-muted-foreground">Paste item text from PoE (Ctrl+C on item) and submit for price prediction.</p>
