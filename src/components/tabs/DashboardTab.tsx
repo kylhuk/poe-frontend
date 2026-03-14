@@ -8,15 +8,24 @@ import { Activity, AlertTriangle, TrendingUp, Server } from 'lucide-react';
 export default function DashboardTab() {
   const [services, setServices] = useState<Service[]>([]);
   const [messages, setMessages] = useState<AppMessage[]>([]);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    api.getServices().then(setServices);
-    api.getMessages().then(setMessages);
+    Promise.all([api.getServices(), api.getMessages()])
+      .then(([nextServices, nextMessages]) => {
+        setServices(nextServices);
+        setMessages(nextMessages);
+        setError(null);
+      })
+      .catch((err: unknown) => {
+        setError(err instanceof Error ? err.message : 'Backend unavailable');
+      });
   }, []);
 
   const running = services.filter(s => s.status === 'running').length;
   const errors = services.filter(s => s.status === 'error').length;
   const criticals = messages.filter(m => m.severity === 'critical');
+  const topOpportunity = criticals[0]?.suggestedAction || 'No critical opportunities';
 
   return (
     <div className="space-y-6">
@@ -25,7 +34,7 @@ export default function DashboardTab() {
         <SummaryCard icon={<Server className="h-5 w-5 text-primary" />} label="Services Running" value={`${running}/${services.length}`} />
         <SummaryCard icon={<AlertTriangle className="h-5 w-5 text-destructive" />} label="Errors" value={String(errors)} accent={errors > 0 ? 'destructive' : undefined} />
         <SummaryCard icon={<Activity className="h-5 w-5 text-warning" />} label="Critical Alerts" value={String(criticals.length)} accent={criticals.length > 0 ? 'warning' : undefined} />
-        <SummaryCard icon={<TrendingUp className="h-5 w-5 text-success" />} label="Top Opportunity" value="1.4 div / 8 min" />
+        <SummaryCard icon={<TrendingUp className="h-5 w-5 text-success" />} label="Top Opportunity" value={topOpportunity} />
       </div>
 
       {/* Service health strip */}
@@ -35,6 +44,7 @@ export default function DashboardTab() {
         </CardHeader>
         <CardContent>
           <div className="flex flex-wrap gap-3">
+            {error && <p className="text-sm text-destructive">{error}</p>}
             {services.map(s => (
               <div key={s.id} className="flex items-center gap-2 bg-secondary/50 rounded px-3 py-2 text-sm">
                 <StatusDot status={s.status} />

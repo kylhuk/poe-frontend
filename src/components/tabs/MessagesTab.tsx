@@ -21,8 +21,18 @@ const severityDot: Record<MessageSeverity, string> = {
 export default function MessagesTab() {
   const [messages, setMessages] = useState<AppMessage[]>([]);
   const [filter, setFilter] = useState<MessageSeverity | 'all'>('all');
+  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => { api.getMessages().then(setMessages); }, []);
+  useEffect(() => {
+    api.getMessages()
+      .then((rows) => {
+        setMessages(rows);
+        setError(null);
+      })
+      .catch((err: unknown) => {
+        setError(err instanceof Error ? err.message : 'Backend unavailable');
+      });
+  }, []);
 
   const filtered = filter === 'all' ? messages : messages.filter(m => m.severity === filter);
   const formatTime = (iso: string) => {
@@ -51,6 +61,7 @@ export default function MessagesTab() {
       </div>
 
       <div className="space-y-2">
+        {error && <p className="text-sm text-destructive">{error}</p>}
         {filtered.map(m => (
           <Card key={m.id} className={cn('border-l-4', severityStyles[m.severity])}>
             <CardContent className="p-3">

@@ -13,14 +13,14 @@ export default function AnalyticsTab() {
   return (
     <Tabs defaultValue="fairvalue" className="space-y-4">
       <TabsList className="flex-wrap h-auto gap-1 bg-secondary/50 p-1">
-        <TabsTrigger value="fairvalue" className="text-xs">FairValue</TabsTrigger>
-        <TabsTrigger value="stale" className="text-xs">StaleArb</TabsTrigger>
-        <TabsTrigger value="gem" className="text-xs">GemValue</TabsTrigger>
-        <TabsTrigger value="heist" className="text-xs">HeistRouter</TabsTrigger>
-        <TabsTrigger value="shipment" className="text-xs">Shipment</TabsTrigger>
-        <TabsTrigger value="gold" className="text-xs">GoldShadow</TabsTrigger>
+        <TabsTrigger value="fairvalue" className="text-xs">Ingestion</TabsTrigger>
+        <TabsTrigger value="stale" className="text-xs">Scanner</TabsTrigger>
+        <TabsTrigger value="gem" className="text-xs">Alerts</TabsTrigger>
+        <TabsTrigger value="heist" className="text-xs">Backtests</TabsTrigger>
+        <TabsTrigger value="shipment" className="text-xs">ML</TabsTrigger>
+        <TabsTrigger value="gold" className="text-xs">Reports</TabsTrigger>
         <TabsTrigger value="session" className="text-xs">Session</TabsTrigger>
-        <TabsTrigger value="gear" className="text-xs">GearSwap</TabsTrigger>
+        <TabsTrigger value="gear" className="text-xs">Diagnostics</TabsTrigger>
       </TabsList>
 
       <TabsContent value="fairvalue"><FairValuePanel /></TabsContent>
@@ -37,7 +37,7 @@ export default function AnalyticsTab() {
 
 function FairValuePanel() {
   const [items, setItems] = useState<FairValueItem[]>([]);
-  useEffect(() => { api.getFairValueItems().then(setItems); }, []);
+  useEffect(() => { api.getFairValueItems().then(setItems).catch(() => setItems([])); }, []);
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -82,11 +82,11 @@ function FairValuePanel() {
 
 function StaleListingPanel() {
   const [items, setItems] = useState<StaleListingOpp[]>([]);
-  useEffect(() => { api.getStaleListings().then(setItems); }, []);
+  useEffect(() => { api.getStaleListings().then(setItems).catch(() => setItems([])); }, []);
 
   return (
     <div className="space-y-2">
-      <p className="text-xs text-muted-foreground">Only trade green cards. Do not waste time on yellow.</p>
+      <p className="text-xs text-muted-foreground">Scanner and recommendation rollup by backend status group.</p>
       {items.map(item => (
         <Card key={item.id} className={item.grade === 'green' ? 'glow-success border-success/20' : item.grade === 'yellow' ? 'border-warning/20' : 'opacity-50'}>
           <CardContent className="p-4">
@@ -114,7 +114,7 @@ function StaleListingPanel() {
 
 function GemValuePanel() {
   const [gems, setGems] = useState<GemState[]>([]);
-  useEffect(() => { api.getGemStates().then(setGems); }, []);
+  useEffect(() => { api.getGemStates().then(setGems).catch(() => setGems([])); }, []);
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -151,7 +151,7 @@ function GemValuePanel() {
 
 function HeistRouterPanel() {
   const [drops, setDrops] = useState<HeistDrop[]>([]);
-  useEffect(() => { api.getHeistDrops().then(setDrops); }, []);
+  useEffect(() => { api.getHeistDrops().then(setDrops).catch(() => setDrops([])); }, []);
 
   const bins: Record<string, string> = {
     'sell fast': 'bg-success/20 text-success border-success/30',
@@ -162,7 +162,7 @@ function HeistRouterPanel() {
 
   return (
     <div className="space-y-2">
-      <p className="text-xs text-muted-foreground">Dump each item into its bin immediately. Don't think.</p>
+      <p className="text-xs text-muted-foreground">Backtest status summary sourced from research history.</p>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         {drops.map(d => (
           <div key={d.id} className={`rounded border p-3 ${bins[d.bin]}`}>
@@ -181,7 +181,7 @@ function HeistRouterPanel() {
 
 function ShipmentPanel() {
   const [s, setS] = useState<ShipmentRecommendation | null>(null);
-  useEffect(() => { api.getShipmentRecommendation().then(setS); }, []);
+  useEffect(() => { api.getShipmentRecommendation().then(setS).catch(() => setS(null)); }, []);
   if (!s) return null;
 
   return (
@@ -216,7 +216,7 @@ function ShipmentPanel() {
 
 function GoldShadowPanel() {
   const [g, setG] = useState<GoldShadowData | null>(null);
-  useEffect(() => { api.getGoldShadowPrice().then(setG); }, []);
+  useEffect(() => { api.getGoldShadowPrice().then(setG).catch(() => setG(null)); }, []);
   if (!g) return null;
 
   return (
@@ -244,7 +244,7 @@ function GoldShadowPanel() {
 
 function SessionPanel() {
   const [s, setS] = useState<SessionRecommendation | null>(null);
-  useEffect(() => { api.getSessionRecommendation().then(setS); }, []);
+  useEffect(() => { api.getSessionRecommendation().then(setS).catch(() => setS(null)); }, []);
   if (!s) return null;
 
   return (

@@ -10,9 +10,15 @@ import { useToast } from '@/hooks/use-toast';
 export default function ServicesTab() {
   const [services, setServices] = useState<Service[]>([]);
   const [loading, setLoading] = useState<Record<string, boolean>>({});
+  const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
 
-  const load = () => api.getServices().then(setServices);
+  const load = () => api.getServices().then((next) => {
+    setServices(next);
+    setError(null);
+  }).catch((err: unknown) => {
+    setError(err instanceof Error ? err.message : 'Backend unavailable');
+  });
   useEffect(() => { load(); }, []);
 
   const act = async (id: string, action: 'start' | 'stop' | 'restart') => {
@@ -22,8 +28,10 @@ export default function ServicesTab() {
       else if (action === 'stop') await api.stopService(id);
       else await api.restartService(id);
       toast({ title: `Service ${action}ed`, description: `Action completed for ${services.find(s => s.id === id)?.name}` });
-      // Mock status flip
-      setServices(prev => prev.map(s => s.id === id ? { ...s, status: action === 'stop' ? 'stopped' : 'running' } : s));
+      await load();
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Service action failed';
+      toast({ title: 'Action failed', description: message });
     } finally {
       setLoading(l => ({ ...l, [id]: false }));
     }
@@ -41,16 +49,17 @@ export default function ServicesTab() {
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-semibold font-sans text-foreground">Services</h2>
         <div className="flex gap-2">
-          <Button size="sm" variant="outline" className="gap-1.5" onClick={() => services.forEach(s => s.status !== 'running' && act(s.id, 'start'))}>
+          <Button size="sm" variant="outline" className="gap-1.5" onClick={() => services.forEach(s => s.status !== 'running' && s.allowedActions?.includes('start') && act(s.id, 'start'))}>
             <PlayCircle className="h-4 w-4" /> Start All
           </Button>
-          <Button size="sm" variant="outline" className="gap-1.5" onClick={() => services.forEach(s => s.status === 'running' && act(s.id, 'stop'))}>
+          <Button size="sm" variant="outline" className="gap-1.5" onClick={() => services.forEach(s => s.status === 'running' && s.allowedActions?.includes('stop') && act(s.id, 'stop'))}>
             <StopCircle className="h-4 w-4" /> Stop All
           </Button>
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {error && <p className="text-sm text-destructive">{error}</p>}
         {services.map(s => (
           <Card key={s.id} className={s.status === 'error' ? 'glow-destructive' : ''}>
             <CardHeader className="pb-2">
@@ -84,13 +93,13 @@ export default function ServicesTab() {
               </div>
               {s.containerInfo && <p className="text-xs text-muted-foreground font-mono mb-3">📦 {s.containerInfo}</p>}
               <div className="flex gap-2">
-                <Button size="sm" variant="outline" className="gap-1" disabled={s.status === 'running' || loading[s.id]} onClick={() => act(s.id, 'start')}>
+                <Button size="sm" variant="outline" className="gap-1" disabled={s.status === 'running' || loading[s.id] || !s.allowedActions?.includes('start')} onClick={() => act(s.id, 'start')}>
                   <Play className="h-3 w-3" /> Start
                 </Button>
-                <Button size="sm" variant="outline" className="gap-1" disabled={s.status === 'stopped' || loading[s.id]} onClick={() => act(s.id, 'stop')}>
+                <Button size="sm" variant="outline" className="gap-1" disabled={s.status === 'stopped' || loading[s.id] || !s.allowedActions?.includes('stop')} onClick={() => act(s.id, 'stop')}>
                   <Square className="h-3 w-3" /> Stop
                 </Button>
-                <Button size="sm" variant="outline" className="gap-1" disabled={loading[s.id]} onClick={() => act(s.id, 'restart')}>
+                <Button size="sm" variant="outline" className="gap-1" disabled={loading[s.id] || !s.allowedActions?.includes('restart')} onClick={() => act(s.id, 'restart')}>
                   <RotateCcw className="h-3 w-3" /> Restart
                 </Button>
               </div>

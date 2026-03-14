@@ -11,6 +11,7 @@ export interface Service {
   rowsInDb: number | null;
   containerInfo: string | null;
   type: 'crawler' | 'analytics' | 'docker' | 'worker';
+  allowedActions?: Array<'start' | 'stop' | 'restart'>;
 }
 
 // ========== Analytics: FairValueEngine ==========
@@ -136,6 +137,10 @@ export interface PriceCheckResponse {
   currency: string;
   confidence: number;
   comparables: { name: string; price: number; currency: string }[];
+  interval?: { p10: number | null; p90: number | null };
+  saleProbabilityPercent?: number | null;
+  priceRecommendationEligible?: boolean;
+  fallbackReason?: string;
 }
 
 // ========== Stash Viewer ==========

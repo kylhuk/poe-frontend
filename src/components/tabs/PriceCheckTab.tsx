@@ -11,13 +11,20 @@ export default function PriceCheckTab() {
   const [text, setText] = useState('');
   const [result, setResult] = useState<PriceCheckResponse | null>(null);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const check = async () => {
     if (!text.trim()) return;
     setLoading(true);
-    const r = await api.priceCheck({ itemText: text });
-    setResult(r);
-    setLoading(false);
+    try {
+      const r = await api.priceCheck({ itemText: text });
+      setResult(r);
+      setError(null);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Price check failed');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -35,6 +42,7 @@ export default function PriceCheckTab() {
           <Search className="h-4 w-4" />
           {loading ? 'Checking...' : 'Price Check'}
         </Button>
+        {error && <p className="text-sm text-destructive">{error}</p>}
       </div>
 
       {result && (
@@ -50,6 +58,19 @@ export default function PriceCheckTab() {
               <p className="text-3xl font-mono text-gold-bright font-semibold">
                 {result.predictedValue} <span className="text-lg text-muted-foreground">{result.currency}</span>
               </p>
+              {result.interval && (
+                <p className="text-xs text-muted-foreground mt-1 font-mono">
+                  p10 {result.interval.p10 ?? 'n/a'} - p90 {result.interval.p90 ?? 'n/a'}
+                </p>
+              )}
+              {typeof result.saleProbabilityPercent === 'number' && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  Sale Probability: {result.saleProbabilityPercent}%
+                </p>
+              )}
+              {result.fallbackReason && (
+                <p className="text-xs text-warning mt-1">Fallback: {result.fallbackReason}</p>
+              )}
             </div>
 
             <div>

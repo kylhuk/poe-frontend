@@ -74,7 +74,17 @@ export default function StashViewerTab() {
   const [tabs, setTabs] = useState<StashTab[]>([]);
   const [activeTab, setActiveTab] = useState(0);
   const [schemaOpen, setSchemaOpen] = useState(false);
-  useEffect(() => { api.getStashTabs().then(setTabs); }, []);
+  const [error, setError] = useState<string | null>(null);
+  useEffect(() => {
+    api.getStashTabs()
+      .then((rows) => {
+        setTabs(rows);
+        setError(null);
+      })
+      .catch((err: unknown) => {
+        setError(err instanceof Error ? err.message : 'Stash feature unavailable');
+      });
+  }, []);
 
   const tab = tabs[activeTab];
   const grid = tab ? getGridSize(tab.type) : 12;
@@ -101,6 +111,8 @@ export default function StashViewerTab() {
       </div>
 
       {/* Stash grid */}
+      {error && <p className="text-sm text-destructive">{error}</p>}
+      {!error && tabs.length === 0 && <p className="text-sm text-muted-foreground">No stash tabs available.</p>}
       {tab && (
         <div className="stash-frame">
           <div
