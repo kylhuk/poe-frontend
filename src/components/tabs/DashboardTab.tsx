@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { forwardRef, useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { StatusDot, Freshness } from '@/components/shared/StatusIndicators';
 import { RenderState } from '@/components/shared/RenderState';
@@ -6,7 +6,7 @@ import { api } from '@/services/api';
 import type { Service, AppMessage } from '@/types/api';
 import { Activity, AlertTriangle, TrendingUp, Server } from 'lucide-react';
 
-export default function DashboardTab() {
+const DashboardTab = forwardRef<HTMLDivElement, Record<string, never>>(function DashboardTab(_props, ref) {
   const [services, setServices] = useState<Service[]>([]);
   const [messages, setMessages] = useState<AppMessage[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -29,7 +29,7 @@ export default function DashboardTab() {
   const topOpportunity = criticals[0]?.suggestedAction || 'No critical opportunities';
 
   return (
-    <div className="space-y-6" data-testid="panel-dashboard-root">
+    <div ref={ref} className="space-y-6" data-testid="panel-dashboard-root">
       {/* Summary row */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <SummaryCard icon={<Server className="h-5 w-5 text-primary" />} label="Services Running" value={`${running}/${services.length}`} />
@@ -80,8 +80,10 @@ export default function DashboardTab() {
       </Card>
     </div>
   );
-}
+});
 
+DashboardTab.displayName = 'DashboardTab';
+export default DashboardTab;
 function SummaryCard({ icon, label, value, accent }: { icon: React.ReactNode; label: string; value: string; accent?: string }) {
   return (
     <Card className={accent === 'destructive' ? 'glow-destructive' : accent === 'warning' ? 'glow-gold' : ''}>

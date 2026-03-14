@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { forwardRef, useCallback, useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { api } from '@/services/api';
@@ -19,12 +19,12 @@ const severityDot: Record<MessageSeverity, string> = {
   info: 'bg-info',
 };
 
-export default function MessagesTab() {
+const MessagesTab = forwardRef<HTMLDivElement, Record<string, never>>(function MessagesTab(_props, ref) {
   const [messages, setMessages] = useState<AppMessage[]>([]);
   const [filter, setFilter] = useState<MessageSeverity | 'all'>('all');
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
+  const load = useCallback(() => {
     api.getMessages()
       .then((rows) => {
         setMessages(rows);
@@ -35,6 +35,12 @@ export default function MessagesTab() {
       });
   }, []);
 
+  useEffect(() => {
+    load();
+    const iv = setInterval(load, 30_000);
+    return () => clearInterval(iv);
+  }, [load]);
+
   const filtered = filter === 'all' ? messages : messages.filter(m => m.severity === filter);
   const formatTime = (iso: string) => {
     const d = new Date(iso);
@@ -42,13 +48,16 @@ export default function MessagesTab() {
   };
 
   const acknowledge = async (id: string) => {
-    await api.ackAlert(id);
-    const rows = await api.getMessages();
-    setMessages(rows);
+    try {
+      await api.ackAlert(id);
+      load();
+    } catch {
+      // error already logged by api layer
+    }
   };
 
   return (
-    <div className="space-y-4" data-testid="panel-messages-root">
+    <div ref={ref} className="space-y-4" data-testid="panel-messages-root">
       <div className="flex items-center justify-between flex-wrap gap-2">
         <h2 className="text-lg font-semibold font-sans text-foreground">Messages & Alerts</h2>
         <div className="flex items-center gap-1">
@@ -102,4 +111,7 @@ export default function MessagesTab() {
       </div>
     </div>
   );
-}
+});
+
+MessagesTab.displayName = 'MessagesTab';
+export default MessagesTab;

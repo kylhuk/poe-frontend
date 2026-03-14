@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { forwardRef, useEffect, useState } from 'react';
 import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Button } from '@/components/ui/button';
@@ -71,7 +71,7 @@ const API_SCHEMA = `{
   ]
 }`;
 
-export default function StashViewerTab() {
+const StashViewerTab = forwardRef<HTMLDivElement, Record<string, never>>(function StashViewerTab(_props, ref) {
   const [tabs, setTabs] = useState<StashTab[]>([]);
   const [status, setStatus] = useState<string>('loading');
   const [activeTab, setActiveTab] = useState(0);
@@ -99,7 +99,7 @@ export default function StashViewerTab() {
   const grid = tab ? getGridSize(tab.type) : 12;
 
   return (
-    <div className="space-y-3" data-testid="panel-stash-root">
+    <div ref={ref} className="space-y-3" data-testid="panel-stash-root">
       {/* PoE-style tab bar */}
       <div className="flex items-end gap-0">
         {tabs.map((t, i) => (
@@ -196,7 +196,10 @@ export default function StashViewerTab() {
       </Collapsible>
     </div>
   );
-}
+});
+
+StashViewerTab.displayName = 'StashViewerTab';
+export default StashViewerTab;
 
 function StashCell({ item, gridSize, style }: { item: StashItem; gridSize: number; style: React.CSSProperties }) {
   const isQuad = gridSize === 24;

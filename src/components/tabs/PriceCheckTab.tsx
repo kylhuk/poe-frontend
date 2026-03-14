@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { forwardRef, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -8,7 +8,7 @@ import type { PriceCheckResponse } from '@/types/api';
 import { Search } from 'lucide-react';
 import { RenderState } from '@/components/shared/RenderState';
 
-export default function PriceCheckTab() {
+const PriceCheckTab = forwardRef<HTMLDivElement, Record<string, never>>(function PriceCheckTab(_props, ref) {
   const [text, setText] = useState('');
   const [result, setResult] = useState<PriceCheckResponse | null>(null);
   const [loading, setLoading] = useState(false);
@@ -32,7 +32,7 @@ export default function PriceCheckTab() {
   };
 
   return (
-    <div className="max-w-2xl mx-auto space-y-6" data-testid="panel-pricecheck-root">
+    <div ref={ref} className="max-w-2xl mx-auto space-y-6" data-testid="panel-pricecheck-root">
       <div className="space-y-3">
         <h2 className="text-lg font-semibold font-sans text-foreground">Price Check</h2>
         <p className="text-xs text-muted-foreground">Paste item text from PoE (Ctrl+C on item) and submit for price prediction.</p>
@@ -94,4 +94,7 @@ export default function PriceCheckTab() {
       )}
     </div>
   );
-}
+});
+
+PriceCheckTab.displayName = 'PriceCheckTab';
+export default PriceCheckTab;

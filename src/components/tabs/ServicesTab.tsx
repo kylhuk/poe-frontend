@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { forwardRef, useCallback, useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { StatusDot, Freshness } from '@/components/shared/StatusIndicators';
@@ -8,19 +8,24 @@ import { Play, Square, RotateCcw, PlayCircle, StopCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { RenderState } from '@/components/shared/RenderState';
 
-export default function ServicesTab() {
+const ServicesTab = forwardRef<HTMLDivElement, Record<string, never>>(function ServicesTab(_props, ref) {
   const [services, setServices] = useState<Service[]>([]);
   const [loading, setLoading] = useState<Record<string, boolean>>({});
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
 
-  const load = () => api.getServices().then((next) => {
+  const load = useCallback(() => api.getServices().then((next) => {
     setServices(next);
     setError(null);
   }).catch((err: unknown) => {
     setError(err instanceof Error ? err.message : 'Backend unavailable');
-  });
-  useEffect(() => { load(); }, []);
+  }), []);
+
+  useEffect(() => {
+    load();
+    const iv = setInterval(load, 30_000);
+    return () => clearInterval(iv);
+  }, [load]);
 
   const act = async (id: string, action: 'start' | 'stop' | 'restart') => {
     setLoading(l => ({ ...l, [id]: true }));
@@ -46,7 +51,7 @@ export default function ServicesTab() {
   };
 
   return (
-    <div className="space-y-4" data-testid="panel-services-root">
+    <div ref={ref} className="space-y-4" data-testid="panel-services-root">
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-semibold font-sans text-foreground">Services</h2>
         <div className="flex gap-2">
@@ -110,4 +115,7 @@ export default function ServicesTab() {
       </div>
     </div>
   );
-}
+});
+
+ServicesTab.displayName = 'ServicesTab';
+export default ServicesTab;

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { forwardRef, useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Freshness, ConfidenceBadge, CurrencyValue, GradeBadge } from '@/components/shared/StatusIndicators';
@@ -9,8 +9,9 @@ import type { FairValueItem, StaleListingOpp, GemState, HeistDrop, ShipmentRecom
 import { LineChart, Line, ResponsiveContainer, YAxis } from 'recharts';
 import { CheckCircle, XCircle, ArrowRight } from 'lucide-react';
 
-export default function AnalyticsTab() {
+const AnalyticsTab = forwardRef<HTMLDivElement, Record<string, never>>(function AnalyticsTab(_props, ref) {
   return (
+    <div ref={ref}>
     <Tabs defaultValue="fairvalue" className="space-y-4">
       <TabsList className="flex-wrap h-auto gap-1 bg-secondary/50 p-1">
         <TabsTrigger data-testid="analytics-tab-fairvalue" value="fairvalue" className="text-xs">Ingestion</TabsTrigger>
@@ -32,8 +33,12 @@ export default function AnalyticsTab() {
       <TabsContent data-testid="analytics-panel-session" value="session"><SessionPanel /></TabsContent>
       <TabsContent data-testid="analytics-panel-gear" value="gear"><GearSwapPanel /></TabsContent>
     </Tabs>
+    </div>
   );
-}
+});
+
+AnalyticsTab.displayName = 'AnalyticsTab';
+export default AnalyticsTab;
 
 function FairValuePanel() {
   const [items, setItems] = useState<FairValueItem[]>([]);
@@ -277,9 +282,14 @@ function GearSwapPanel() {
 
   const simulate = async () => {
     setLoading(true);
-    const r = await api.simulateGearSwap(candidateText);
-    setResult(r);
-    setLoading(false);
+    try {
+      const r = await api.simulateGearSwap(candidateText);
+      setResult(r);
+    } catch {
+      // error logged by api layer
+    } finally {
+      setLoading(false);
+    }
   };
 
   const stats: (keyof GearSwapResult['current'])[] = ['fireRes', 'coldRes', 'lightningRes', 'chaosRes', 'spellSuppression', 'life', 'str', 'dex', 'int'];
