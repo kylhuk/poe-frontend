@@ -29,7 +29,7 @@ const DashboardTab = forwardRef<HTMLDivElement, Record<string, never>>(function 
   const topOpportunity = criticals[0]?.suggestedAction || 'No critical opportunities';
 
   return (
-    <div className="space-y-6" data-testid="panel-dashboard-root">
+    <div ref={ref} className="space-y-6" data-testid="panel-dashboard-root">
       {/* Summary row */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <SummaryCard icon={<Server className="h-5 w-5 text-primary" />} label="Services Running" value={`${running}/${services.length}`} />
