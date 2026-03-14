@@ -282,9 +282,14 @@ function GearSwapPanel() {
 
   const simulate = async () => {
     setLoading(true);
-    const r = await api.simulateGearSwap(candidateText);
-    setResult(r);
-    setLoading(false);
+    try {
+      const r = await api.simulateGearSwap(candidateText);
+      setResult(r);
+    } catch {
+      // error logged by api layer
+    } finally {
+      setLoading(false);
+    }
   };
 
   const stats: (keyof GearSwapResult['current'])[] = ['fireRes', 'coldRes', 'lightningRes', 'chaosRes', 'spellSuppression', 'life', 'str', 'dex', 'int'];
