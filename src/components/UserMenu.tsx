@@ -63,7 +63,7 @@ const UserMenu = () => {
         <PopoverContent align="end" className="w-72 space-y-3">
           <div className="flex items-center gap-2 text-xs">
             {connected ? (
-              <><CheckCircle2 className="h-3.5 w-3.5 text-green-500" /><span className="text-muted-foreground">Connected as <strong className="text-foreground">{user.accountName}</strong></span></>
+              <><CheckCircle2 className="h-3.5 w-3.5 text-primary" /><span className="text-muted-foreground">Connected as <strong className="text-foreground">{user.accountName}</strong></span></>
             ) : (
               <><XCircle className="h-3.5 w-3.5 text-destructive" /><span className="text-muted-foreground">Not connected</span></>
             )}
