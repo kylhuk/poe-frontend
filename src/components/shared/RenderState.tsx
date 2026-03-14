@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { forwardRef, type ReactNode } from 'react';
 import { AlertTriangle, CircleOff, Loader2, ShieldAlert, Unplug } from 'lucide-react';
 
 type RenderStateKind =
