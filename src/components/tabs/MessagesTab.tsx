@@ -48,9 +48,12 @@ const MessagesTab = forwardRef<HTMLDivElement, Record<string, never>>(function M
   };
 
   const acknowledge = async (id: string) => {
-    await api.ackAlert(id);
-    const rows = await api.getMessages();
-    setMessages(rows);
+    try {
+      await api.ackAlert(id);
+      load();
+    } catch {
+      // error already logged by api layer
+    }
   };
 
   return (
