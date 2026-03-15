@@ -15,16 +15,16 @@ interface SessionPayload {
 
 interface AuthContextValue {
   user: AuthUser | null;
-  login: (poeSessionId: string) => Promise<void>;
+  login: (poeSessionId: string) => Promise<boolean>;
   logout: () => void;
-  refreshSession: () => Promise<void>;
+  refreshSession: () => Promise<void | SessionPayload>;
   sessionState: 'connected' | 'disconnected' | 'session_expired';
   isLoading: boolean;
 }
 
 const AuthContext = createContext<AuthContextValue>({
   user: null,
-  login: async () => {},
+  login: async () => false,
   logout: () => {},
   refreshSession: async () => {},
   sessionState: 'disconnected',
@@ -54,22 +54,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [sessionState, setSessionState] = useState<'connected' | 'disconnected' | 'session_expired'>('disconnected');
   const [isLoading, setIsLoading] = useState(true);
 
-  const refreshSession = useCallback(async () => {
+  const refreshSession = useCallback(async (): Promise<SessionPayload> => {
     const payload = await fetchSession();
     if (payload.status === 'connected' && payload.accountName) {
       setUser({ accountName: payload.accountName });
       setSessionState('connected');
-      return;
+      return payload;
     }
     setUser(null);
     setSessionState(payload.status);
+    return payload;
   }, []);
 
   useEffect(() => {
     refreshSession().finally(() => setIsLoading(false));
   }, [refreshSession]);
 
-  const login = useCallback(async (poeSessionId: string) => {
+  const login = useCallback(async (poeSessionId: string): Promise<boolean> => {
     try {
       const response = await fetch(`${API_BASE}/api/v1/auth/session`, {
         method: 'POST',
@@ -84,8 +85,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     } catch (err) {
       logApiError({ path: '/api/v1/auth/session', errorCode: 'network_error', message: err instanceof Error ? err.message : 'Network error' });
+      return false;
     }
-    await refreshSession();
+    const result = await refreshSession();
+    return result.status === 'connected' && !!result.accountName;
   }, [refreshSession]);
 
   const logout = useCallback(() => {
