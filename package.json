@@ -12,7 +12,8 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:inventory": "vitest run src/test/scenarioInventory.test.ts && node scripts/validate-scenario-inventory.mjs && node scripts/validate-scenario-inventory-negative.mjs"
+    "test:inventory": "vitest run src/test/scenarioInventory.test.ts && node scripts/validate-scenario-inventory.mjs && node scripts/validate-scenario-inventory-negative.mjs",
+    "test:deterministic": "npm run test && npm run build && npm run test:inventory"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",

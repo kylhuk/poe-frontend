@@ -3,21 +3,23 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { StatusDot, Freshness } from '@/components/shared/StatusIndicators';
 import { RenderState } from '@/components/shared/RenderState';
 import { api } from '@/services/api';
-import type { Service, AppMessage } from '@/types/api';
+import type { Service, AppMessage, ScannerRecommendation } from '@/types/api';
 import { Activity, AlertTriangle, TrendingUp, Server } from 'lucide-react';
 import { useMouseGlow } from '@/hooks/useMouseGlow';
 
 const DashboardTab = forwardRef<HTMLDivElement, Record<string, never>>(function DashboardTab(_props, ref) {
   const [services, setServices] = useState<Service[]>([]);
   const [messages, setMessages] = useState<AppMessage[]>([]);
+  const [recommendations, setRecommendations] = useState<ScannerRecommendation[]>([]);
   const [error, setError] = useState<string | null>(null);
   const mouseGlow = useMouseGlow();
 
   useEffect(() => {
-    Promise.all([api.getServices(), api.getMessages()])
-      .then(([nextServices, nextMessages]) => {
+    Promise.all([api.getServices(), api.getMessages(), api.getScannerRecommendations()])
+      .then(([nextServices, nextMessages, nextRecs]) => {
         setServices(nextServices);
         setMessages(nextMessages);
+        setRecommendations(nextRecs);
         setError(null);
       })
       .catch((err: unknown) => {
@@ -28,7 +30,7 @@ const DashboardTab = forwardRef<HTMLDivElement, Record<string, never>>(function 
   const running = services.filter(s => s.status === 'running').length;
   const errors = services.filter(s => s.status === 'error').length;
   const criticals = messages.filter(m => m.severity === 'critical');
-  const topOpportunity = criticals[0]?.suggestedAction || 'No critical opportunities';
+  const topOpportunity = recommendations[0] ? `${recommendations[0].strategyId}: ${recommendations[0].itemOrMarketKey}` : 'No opportunities';
 
   return (
     <div ref={ref} className="space-y-6" data-testid="panel-dashboard-root">
@@ -66,18 +68,18 @@ const DashboardTab = forwardRef<HTMLDivElement, Record<string, never>>(function 
           <p className="text-xs text-muted-foreground">Sorted by expected net chaos per minute of human time</p>
         </CardHeader>
         <CardContent className="space-y-3">
-          {criticals.slice(0, 3).map(m => (
-            <div key={m.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 bg-secondary/30 rounded p-3 border border-border transition-colors hover:border-primary/30">
+          {recommendations.slice(0, 3).map(r => (
+            <div key={`${r.scannerRunId}-${r.itemOrMarketKey}`} className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 bg-secondary/30 rounded p-3 border border-border transition-colors hover:border-primary/30">
               <div className="flex-1">
-                <span className="text-xs text-muted-foreground font-mono">{m.sourceModule}</span>
-                <p className="text-sm text-foreground">{m.message}</p>
+                <span className="text-xs text-muted-foreground font-mono">{r.strategyId}</span>
+                <p className="text-sm text-foreground">{r.whyItFired}</p>
               </div>
               <div className="text-right">
-                <span className="text-xs px-2 py-1 rounded bg-success/20 text-success font-medium">{m.suggestedAction}</span>
+                <span className="text-xs px-2 py-1 rounded bg-success/20 text-success font-medium">{r.buyPlan}</span>
               </div>
             </div>
           ))}
-          {criticals.length === 0 && <RenderState kind="empty" message="No critical opportunities right now" />}
+          {recommendations.length === 0 && <RenderState kind="empty" message="No opportunities right now" />}
         </CardContent>
       </Card>
     </div>

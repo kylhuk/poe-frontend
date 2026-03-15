@@ -82,14 +82,18 @@ const PriceCheckTab = forwardRef<HTMLDivElement, Record<string, never>>(function
 
             <div>
               <p className="text-xs text-muted-foreground mb-2">Comparable Items</p>
-              <div className="space-y-2">
-                {result.comparables.map((c, i) => (
-                  <div key={i} className="flex items-center justify-between bg-secondary/50 rounded p-2 text-xs transition-colors hover:bg-secondary">
-                    <span className="text-foreground">{c.name}</span>
-                    <CurrencyValue value={c.price} currency={c.currency} />
-                  </div>
-                ))}
-              </div>
+              {result.comparables && result.comparables.length > 0 ? (
+                <div className="space-y-2">
+                  {result.comparables.map((c) => (
+                    <div key={`${c.name}-${c.price}-${c.currency}`} className="flex items-center justify-between bg-secondary/50 rounded p-2 text-xs transition-colors hover:bg-secondary">
+                      <span className="text-foreground">{c.name}</span>
+                      <CurrencyValue value={c.price} currency={c.currency} />
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs text-muted-foreground italic">No comparables available</p>
+              )}
             </div>
           </CardContent>
         </Card>

@@ -5,7 +5,8 @@ import AnalyticsTab from '@/components/tabs/AnalyticsTab';
 import PriceCheckTab from '@/components/tabs/PriceCheckTab';
 import StashViewerTab from '@/components/tabs/StashViewerTab';
 import MessagesTab from '@/components/tabs/MessagesTab';
-import { LayoutDashboard, Server, BarChart3, Search, Grid3X3, MessageSquare } from 'lucide-react';
+import OpportunitiesTab from '@/components/tabs/OpportunitiesTab';
+import { LayoutDashboard, Server, BarChart3, Search, Grid3X3, MessageSquare, TrendingUp } from 'lucide-react';
 import UserMenu from '@/components/UserMenu';
 import ApiErrorPanel from '@/components/ApiErrorPanel';
 
@@ -31,6 +32,9 @@ const Index = () => {
             <TabsTrigger data-testid="tab-dashboard" value="dashboard" className="tab-game gap-1.5 text-xs data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
               <LayoutDashboard className="h-3.5 w-3.5" /> Dashboard
             </TabsTrigger>
+            <TabsTrigger data-testid="tab-opportunities" value="opportunities" className="tab-game gap-1.5 text-xs data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+              <TrendingUp className="h-3.5 w-3.5" /> Opportunities
+            </TabsTrigger>
             <TabsTrigger data-testid="tab-services" value="services" className="tab-game gap-1.5 text-xs data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
               <Server className="h-3.5 w-3.5" /> Services
             </TabsTrigger>
@@ -49,6 +53,7 @@ const Index = () => {
           </TabsList>
 
           <TabsContent data-testid="panel-dashboard" value="dashboard"><DashboardTab /></TabsContent>
+          <TabsContent data-testid="panel-opportunities" value="opportunities"><OpportunitiesTab /></TabsContent>
           <TabsContent data-testid="panel-services" value="services"><ServicesTab /></TabsContent>
           <TabsContent data-testid="panel-analytics" value="analytics"><AnalyticsTab /></TabsContent>
           <TabsContent data-testid="panel-pricecheck" value="pricecheck"><PriceCheckTab /></TabsContent>

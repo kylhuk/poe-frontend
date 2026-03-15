@@ -288,6 +288,19 @@
       ]
     },
     {
+      "id": "opportunities-tab-load",
+      "owner": "qa-frontend",
+      "classification": "live-smoke",
+      "selectorTarget": "[data-testid=panel-opportunities-root]",
+      "artifact": ".sisyphus/evidence/product/task-2-scenario-inventory/opportunities-tab-load.png",
+      "backendDependencies": [
+        "/api/v1/ops/scanner/recommendations"
+      ],
+      "apiMethods": [
+        "getScannerRecommendations"
+      ]
+    },
+    {
       "id": "auth-session-state-indicator",
       "owner": "qa-frontend",
       "classification": "degraded-state",

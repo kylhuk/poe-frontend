@@ -60,6 +60,12 @@ This project is built with:
 - shadcn-ui
 - Tailwind CSS
 
+## Known Limitations & Stubs
+
+- **CORS**: The live frontend at `poe.lama-lan.ch` is currently blocked by CORS when accessing `api.poe.lama-lan.ch`. Use local dev or QA environments for full functionality.
+- **Feature Stubs**: Several analytics panels (Session, Diagnostics) and price-check comparables are currently `feature_unavailable` or return empty results from the backend.
+- **Opportunities**: The dashboard "Top Opportunities" are now scanner-backed via the API, but the frontend may still render them from the messages/alerts feed in some views.
+
 ## How can I deploy this project?
 
 Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
