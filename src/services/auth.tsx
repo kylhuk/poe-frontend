@@ -87,9 +87,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       logApiError({ path: '/api/v1/auth/session', errorCode: 'network_error', message: err instanceof Error ? err.message : 'Network error' });
       return false;
     }
-    await refreshSession();
-    return sessionState === 'connected' && !!user;
-  }, [refreshSession, sessionState, user]);
+    const result = await refreshSession();
+    return result.status === 'connected' && !!result.accountName;
+  }, [refreshSession]);
 
   const logout = useCallback(() => {
     fetch(`${API_BASE}/api/v1/auth/logout`, {
