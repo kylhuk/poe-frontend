@@ -17,7 +17,7 @@ interface AuthContextValue {
   user: AuthUser | null;
   login: (poeSessionId: string) => Promise<boolean>;
   logout: () => void;
-  refreshSession: () => Promise<void>;
+  refreshSession: () => Promise<void | SessionPayload>;
   sessionState: 'connected' | 'disconnected' | 'session_expired';
   isLoading: boolean;
 }
