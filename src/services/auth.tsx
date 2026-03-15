@@ -69,7 +69,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     refreshSession().finally(() => setIsLoading(false));
   }, [refreshSession]);
 
-  const login = useCallback(async (poeSessionId: string) => {
+  const login = useCallback(async (poeSessionId: string): Promise<boolean> => {
     try {
       const response = await fetch(`${API_BASE}/api/v1/auth/session`, {
         method: 'POST',
@@ -84,9 +84,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     } catch (err) {
       logApiError({ path: '/api/v1/auth/session', errorCode: 'network_error', message: err instanceof Error ? err.message : 'Network error' });
+      return false;
     }
     await refreshSession();
-  }, [refreshSession]);
+    return sessionState === 'connected' && !!user;
+  }, [refreshSession, sessionState, user]);
 
   const logout = useCallback(() => {
     fetch(`${API_BASE}/api/v1/auth/logout`, {
