@@ -54,15 +54,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [sessionState, setSessionState] = useState<'connected' | 'disconnected' | 'session_expired'>('disconnected');
   const [isLoading, setIsLoading] = useState(true);
 
-  const refreshSession = useCallback(async () => {
+  const refreshSession = useCallback(async (): Promise<SessionPayload> => {
     const payload = await fetchSession();
     if (payload.status === 'connected' && payload.accountName) {
       setUser({ accountName: payload.accountName });
       setSessionState('connected');
-      return;
+      return payload;
     }
     setUser(null);
     setSessionState(payload.status);
+    return payload;
   }, []);
 
   useEffect(() => {
