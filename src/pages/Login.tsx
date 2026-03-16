@@ -25,7 +25,7 @@ const Login = () => {
     if (error) {
       toast.error(error);
     } else if (isSignUp) {
-      toast.success('Account created');
+      toast.success('Account created — waiting for admin approval');
     }
   };
 

@@ -180,6 +180,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     <AuthContext.Provider value={{
       supabaseUser,
       isAuthenticated,
+      isApproved,
       signIn,
       signUp,
       signOut: signOutFn,
