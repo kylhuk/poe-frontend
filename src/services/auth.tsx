@@ -71,9 +71,7 @@ export const useAuth = () => useContext(AuthContext);
 
 async function fetchSession(): Promise<SessionPayload> {
   try {
-    const response = await fetch(`${API_BASE}/api/v1/auth/session`, {
-      credentials: 'include',
-    });
+    const response = await proxyFetch('/api/v1/auth/session');
     if (!response.ok) {
       logApiError({ path: '/api/v1/auth/session', statusCode: response.status, errorCode: 'auth_session', message: `Session check failed (${response.status})` });
       return { status: 'disconnected' };
