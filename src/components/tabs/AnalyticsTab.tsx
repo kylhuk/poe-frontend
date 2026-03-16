@@ -1011,13 +1011,13 @@ function PricingOutliersPanel() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="text-xs">Item Name</TableHead>
+                    <TableHead className="text-xs"><button type="button" onClick={() => { if (sort === 'item_name') setOrder(o => o === 'asc' ? 'desc' : 'asc'); else { setSort('item_name'); setOrder('asc'); } }}>Item Name{sort === 'item_name' ? ` ${sortArrow(order)}` : ''}</button></TableHead>
                     <TableHead className="text-xs">Affix Analyzed</TableHead>
-                    <TableHead className="text-xs">10 percentile</TableHead>
-                    <TableHead className="text-xs">Median</TableHead>
-                    <TableHead className="text-xs">90 percentile</TableHead>
-                    <TableHead className="text-xs">Items / week</TableHead>
-                    <TableHead className="text-xs">Items total</TableHead>
+                    <TableHead className="text-xs"><button type="button" onClick={() => { if (sort === 'p10') setOrder(o => o === 'asc' ? 'desc' : 'asc'); else { setSort('p10'); setOrder('asc'); } }}>p10{sort === 'p10' ? ` ${sortArrow(order)}` : ''}</button></TableHead>
+                    <TableHead className="text-xs"><button type="button" onClick={() => { if (sort === 'median') setOrder(o => o === 'asc' ? 'desc' : 'asc'); else { setSort('median'); setOrder('asc'); } }}>Median{sort === 'median' ? ` ${sortArrow(order)}` : ''}</button></TableHead>
+                    <TableHead className="text-xs"><button type="button" onClick={() => { if (sort === 'p90') setOrder(o => o === 'asc' ? 'desc' : 'asc'); else { setSort('p90'); setOrder('asc'); } }}>p90{sort === 'p90' ? ` ${sortArrow(order)}` : ''}</button></TableHead>
+                    <TableHead className="text-xs"><button type="button" onClick={() => { if (sort === 'items_per_week') setOrder(o => o === 'asc' ? 'desc' : 'asc'); else { setSort('items_per_week'); setOrder('desc'); } }}>Items/wk{sort === 'items_per_week' ? ` ${sortArrow(order)}` : ''}</button></TableHead>
+                    <TableHead className="text-xs"><button type="button" onClick={() => { if (sort === 'items_total') setOrder(o => o === 'asc' ? 'desc' : 'asc'); else { setSort('items_total'); setOrder('desc'); } }}>Items total{sort === 'items_total' ? ` ${sortArrow(order)}` : ''}</button></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
