@@ -218,12 +218,21 @@ function BacktestsPanel() {
 }
 
 function statusColor(status: string): string {
-  if (status.startsWith('passed') || status === 'promoted') return 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30';
-  if (status === 'hold' || status.includes('hold')) return 'bg-amber-500/20 text-amber-400 border-amber-500/30';
+  if (!status || status === 'unknown' || status === 'no_runs') return 'bg-muted text-muted-foreground border-border';
+  if (status === 'completed' || status.startsWith('passed') || status === 'promoted' || status === 'succeeded' || status === 'ready') {
+    return 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30';
+  }
+  if (status === 'running' || status.includes('running') || status === 'in_progress') {
+    return 'bg-sky-500/20 text-sky-400 border-sky-500/30';
+  }
+  if (status === 'hold' || status.includes('hold') || status === 'failed_gates' || status === 'stopped_budget' || status === 'stopped_no_improvement') {
+    return 'bg-amber-500/20 text-amber-400 border-amber-500/30';
+  }
   return 'bg-destructive/20 text-destructive border-destructive/30';
 }
 
 function verdictColor(verdict: string): string {
+  if (!verdict || verdict === 'unknown' || verdict === 'none') return 'bg-muted text-muted-foreground border-border';
   if (verdict === 'promote') return 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30';
   if (verdict === 'hold') return 'bg-amber-500/20 text-amber-400 border-amber-500/30';
   return 'bg-destructive/20 text-destructive border-destructive/30';
@@ -271,6 +280,11 @@ function MlPanel() {
             <div>
               <span className="text-muted-foreground">League</span>
               <p className="font-mono text-foreground">{s.league}</p>
+            </div>
+            <div className="col-span-2 sm:col-span-3">
+              <p className="text-[11px] text-muted-foreground">
+                Status reflects whether training and evaluation finished. Verdict shows whether the latest candidate replaced the incumbent model.
+              </p>
             </div>
             <div className="sm:col-span-2">
               <span className="text-muted-foreground">Run ID</span>

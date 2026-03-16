@@ -20,3 +20,10 @@ def test_ml_automation_types_include_observability_shape() -> None:
     assert 'routeMetrics:' in source
     assert 'datasetCoverage:' in source
     assert 'promotions:' in source
+
+
+
+def test_analytics_tab_treats_completed_and_running_as_non_error_states() -> None:
+    source = Path('src/components/tabs/AnalyticsTab.tsx').read_text(encoding='utf-8')
+    assert "status === 'completed'" in source
+    assert "status === 'running'" in source
