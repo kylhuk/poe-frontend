@@ -3,18 +3,56 @@ import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { AuthProvider } from "@/services/auth";
+import { AuthProvider, useAuth } from "@/services/auth";
 import Index from "./pages/Index.tsx";
 import AuthCallback from "./pages/AuthCallback.tsx";
 import NotFound from "./pages/NotFound.tsx";
-
-console.log('[DEBUG-APP] Sonner:', typeof Sonner);
-console.log('[DEBUG-APP] Toaster:', typeof Toaster);
-console.log('[DEBUG-APP] AuthProvider:', typeof AuthProvider);
-console.log('[DEBUG-APP] Index:', typeof Index);
-console.log('[DEBUG-APP] AuthCallback:', typeof AuthCallback);
+import Login from "./pages/Login.tsx";
 
 const queryClient = new QueryClient();
+
+const PendingApproval = () => {
+  const { signOut, supabaseUser } = useAuth();
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-background p-4">
+      <div className="text-center space-y-4 max-w-sm">
+        <h1 className="text-lg font-semibold text-foreground">Pending Approval</h1>
+        <p className="text-sm text-muted-foreground">
+          Your account <strong className="text-foreground">{supabaseUser?.email}</strong> has been created but is not yet approved. Contact an administrator to get access.
+        </p>
+        <button onClick={signOut} className="text-xs text-muted-foreground hover:text-foreground underline transition-colors">
+          Sign Out
+        </button>
+      </div>
+    </div>
+  );
+};
+
+const AppGate = () => {
+  const { isAuthenticated, isApproved, isLoading } = useAuth();
+
+  if (isLoading) {
+    return <div className="min-h-screen flex items-center justify-center bg-background text-muted-foreground text-sm">Loading…</div>;
+  }
+
+  if (!isAuthenticated) {
+    return <Login />;
+  }
+
+  if (!isApproved) {
+    return <PendingApproval />;
+  }
+
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<Index />} />
+        <Route path="/auth/callback" element={<AuthCallback />} />
+        <Route path="*" element={<NotFound />} />
+      </Routes>
+    </BrowserRouter>
+  );
+};
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -22,14 +60,7 @@ const App = () => (
       <TooltipProvider>
         <Toaster />
         <Sonner />
-        <BrowserRouter>
-          <Routes>
-            <Route path="/" element={<Index />} />
-            <Route path="/auth/callback" element={<AuthCallback />} />
-            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </BrowserRouter>
+        <AppGate />
       </TooltipProvider>
     </AuthProvider>
   </QueryClientProvider>

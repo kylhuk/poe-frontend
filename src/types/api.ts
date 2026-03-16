@@ -250,6 +250,41 @@ export interface AppMessage {
   suggestedAction: string;
 }
 
+// ========== Dashboard ==========
+export interface DashboardResponse {
+  services: Service[];
+  summary: {
+    running: number;
+    total: number;
+    errors: number;
+    criticalAlerts: number;
+    topOpportunity: string;
+  };
+  topOpportunities: ScannerRecommendation[];
+}
+
+// ========== ML Automation ==========
+export interface MlAutomationStatus {
+  league: string;
+  active_model_version: string | null;
+  automation_enabled: boolean;
+  latest_run?: {
+    run_id: string;
+    status: string;
+    promotion_verdict: string;
+  };
+}
+
+export interface MlAutomationHistory {
+  runs: Array<{
+    run_id: string;
+    status: string;
+    promotion_verdict: string;
+    model_version: string;
+    stop_reason: string;
+  }>;
+}
+
 // ========== API Service Interface ==========
 export interface ApiService {
   getDashboard(): Promise<DashboardResponse>;
