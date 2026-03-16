@@ -1070,7 +1070,7 @@ function MiniHistogram({
           <div key={`${String(bucket.bucketStart)}-${index}`} className="flex-1 h-full flex items-end">
             <div
               title={`${formatLabel(bucket.bucketStart)} → ${formatLabel(bucket.bucketEnd)} · ${bucket.count}`}
-              className="w-full rounded-t bg-secondary border border-border/40"
+              className="w-full rounded-t bg-primary/60 border border-primary/20"
               style={{ height: `${Math.max(12, (bucket.count / maxCount) * 100)}%` }}
             />
           </div>
