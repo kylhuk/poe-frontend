@@ -3,19 +3,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { StatusDot, Freshness } from '../shared/StatusIndicators';
 import { RenderState } from '../shared/RenderState';
 import { api } from '../../services/api';
-import type {
-  Service,
-  AppMessage,
-  ScannerRecommendation,
-  ScannerRecommendationsRequest,
-} from '../../types/api';
+import type { DashboardResponse } from '../../types/api';
 import { Activity, AlertTriangle, TrendingUp, Server } from 'lucide-react';
 import { useMouseGlow } from '../../hooks/useMouseGlow';
-
-const DASHBOARD_RECOMMENDATIONS_REQUEST: ScannerRecommendationsRequest = {
-  sort: 'expected_profit_per_minute_chaos',
-  limit: 3,
-};
 
 const DashboardTab = forwardRef<HTMLDivElement, Record<string, never>>(function DashboardTab(_props, ref) {
   const [data, setData] = useState<DashboardResponse | null>(null);
@@ -23,15 +13,9 @@ const DashboardTab = forwardRef<HTMLDivElement, Record<string, never>>(function 
   const mouseGlow = useMouseGlow();
 
   useEffect(() => {
-    Promise.all([
-      api.getServices(),
-      api.getMessages(),
-      api.getScannerRecommendations(DASHBOARD_RECOMMENDATIONS_REQUEST),
-    ])
-      .then(([nextServices, nextMessages, nextRecommendations]) => {
-        setServices(nextServices);
-        setMessages(nextMessages);
-        setRecommendations(nextRecommendations.recommendations);
+    api.getDashboard()
+      .then((response) => {
+        setData(response);
         setError(null);
       })
       .catch((err: unknown) => {
