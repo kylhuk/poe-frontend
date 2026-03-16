@@ -2,6 +2,10 @@ import { forwardRef, useEffect, useRef, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { RenderState } from '../shared/RenderState';
 import { Button } from '../ui/button';
+import { Input } from '../ui/input';
+import { Label } from '../ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
+import { Slider } from '../ui/slider';
 import { api } from '../../services/api';
 import type {
   ScannerRecommendation,
@@ -9,6 +13,7 @@ import type {
   ScannerRecommendationsResponse,
 } from '../../types/api';
 import { useMouseGlow } from '../../hooks/useMouseGlow';
+import { Filter, X } from 'lucide-react';
 
 type ScannerSort = 'expected_profit_chaos' | 'expected_profit_per_minute_chaos';
 
@@ -48,13 +53,24 @@ function formatChaos(value: number | null): string {
   return value !== null ? `${value}c` : 'N/A';
 }
 
-function scannerRecommendationsRequest(sort: ScannerSort, cursor?: string): ScannerRecommendationsRequest {
+function buildRequest(
+  sort: ScannerSort,
+  cursor?: string,
+  opts?: { limit?: number; strategyId?: string; minConfidence?: number },
+): ScannerRecommendationsRequest {
   const request: ScannerRecommendationsRequest = { sort };
-  if (QA_SCANNER_RECOMMENDATIONS_PAGE_SIZE !== undefined) {
-    request.limit = QA_SCANNER_RECOMMENDATIONS_PAGE_SIZE;
+  const limit = opts?.limit ?? QA_SCANNER_RECOMMENDATIONS_PAGE_SIZE;
+  if (limit !== undefined) {
+    request.limit = limit;
   }
   if (cursor) {
     request.cursor = cursor;
+  }
+  if (opts?.strategyId) {
+    request.strategyId = opts.strategyId;
+  }
+  if (opts?.minConfidence !== undefined && opts.minConfidence > 0) {
+    request.minConfidence = opts.minConfidence;
   }
   return request;
 }
@@ -66,96 +82,80 @@ const OpportunitiesTab = forwardRef<HTMLDivElement, Record<string, never>>(funct
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showFilters, setShowFilters] = useState(false);
+  const [strategyId, setStrategyId] = useState('');
+  const [minConfidence, setMinConfidence] = useState(0);
+  const [limit, setLimit] = useState(50);
   const mouseGlow = useMouseGlow();
   const requestVersionRef = useRef(0);
 
-  useEffect(() => {
+  const fetchInitial = (currentSort: ScannerSort, opts?: { limit?: number; strategyId?: string; minConfidence?: number }) => {
     const requestVersion = ++requestVersionRef.current;
-
     setLoading(true);
     setLoadingMore(false);
     setError(null);
     setRecommendationResponse(createEmptyResponse());
 
-    api.getScannerRecommendations(scannerRecommendationsRequest(sort))
+    api.getScannerRecommendations(buildRequest(currentSort, undefined, opts))
       .then(nextResponse => {
-        if (requestVersionRef.current !== requestVersion) {
-          return;
-        }
+        if (requestVersionRef.current !== requestVersion) return;
         setRecommendationResponse(nextResponse);
       })
       .catch((err: unknown) => {
-        if (requestVersionRef.current !== requestVersion) {
-          return;
-        }
+        if (requestVersionRef.current !== requestVersion) return;
         setError(err instanceof Error ? err.message : 'Failed to load opportunities');
       })
       .finally(() => {
-        if (requestVersionRef.current === requestVersion) {
-          setLoading(false);
-        }
+        if (requestVersionRef.current === requestVersion) setLoading(false);
       });
+  };
+
+  useEffect(() => {
+    fetchInitial(sort, { limit, strategyId: strategyId.trim() || undefined, minConfidence });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sort]);
+
+  const applyFilters = () => {
+    fetchInitial(sort, { limit, strategyId: strategyId.trim() || undefined, minConfidence });
+  };
+
+  const clearFilters = () => {
+    setSort('expected_profit_chaos');
+    setMinConfidence(0);
+    setStrategyId('');
+    setLimit(50);
+    fetchInitial('expected_profit_chaos');
+  };
 
   const loadMore = async () => {
     const nextCursor = recommendationResponse.meta.nextCursor;
-    if (loading || loadingMore || !recommendationResponse.meta.hasMore || !nextCursor) {
-      return;
-    }
+    if (loading || loadingMore || !recommendationResponse.meta.hasMore || !nextCursor) return;
 
     const requestVersion = requestVersionRef.current;
     setLoadingMore(true);
     setError(null);
 
     try {
-      const nextResponse = await api.getScannerRecommendations(scannerRecommendationsRequest(sort, nextCursor));
-      if (requestVersionRef.current !== requestVersion) {
-        return;
-      }
-      setRecommendationResponse(previousResponse => {
-        if (!previousResponse.meta.hasMore || previousResponse.meta.nextCursor !== nextCursor) {
-          return previousResponse;
-        }
+      const nextResponse = await api.getScannerRecommendations(
+        buildRequest(sort, nextCursor, { limit, strategyId: strategyId.trim() || undefined, minConfidence }),
+      );
+      if (requestVersionRef.current !== requestVersion) return;
+      setRecommendationResponse(prev => {
+        if (!prev.meta.hasMore || prev.meta.nextCursor !== nextCursor) return prev;
         return {
-          recommendations: [...previousResponse.recommendations, ...nextResponse.recommendations],
+          recommendations: [...prev.recommendations, ...nextResponse.recommendations],
           meta: nextResponse.meta,
         };
       });
     } catch (err: unknown) {
-      if (requestVersionRef.current !== requestVersion) {
-        return;
-      }
+      if (requestVersionRef.current !== requestVersion) return;
       setError(err instanceof Error ? err.message : 'Failed to load opportunities');
     } finally {
-      if (requestVersionRef.current === requestVersion) {
-        setLoadingMore(false);
-      }
+      if (requestVersionRef.current === requestVersion) setLoadingMore(false);
     }
   };
 
   const recommendations = recommendationResponse.recommendations;
   const canLoadMore = recommendationResponse.meta.hasMore && recommendationResponse.meta.nextCursor;
-
-  useEffect(() => {
-    fetchData({});
-  }, [fetchData]);
-
-  const applyFilters = () => {
-    fetchData({
-      sort: sort || undefined,
-      limit,
-      min_confidence: minConfidence > 0 ? minConfidence : undefined,
-      strategy_id: strategyId.trim() || undefined,
-    });
-  };
-
-  const clearFilters = () => {
-    setSort('');
-    setMinConfidence(0);
-    setStrategyId('');
-    setLimit(50);
-    fetchData({});
-  };
 
   if (loading) {
     return <div ref={ref} data-testid="panel-opportunities-root"><RenderState kind="loading" message="Scanning market..." /></div>;
@@ -200,13 +200,13 @@ const OpportunitiesTab = forwardRef<HTMLDivElement, Record<string, never>>(funct
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               <div className="space-y-1.5">
                 <Label className="text-xs">Sort</Label>
-                <Select value={sort} onValueChange={setSort}>
+                <Select value={sort} onValueChange={(v) => setSort(v as ScannerSort)}>
                   <SelectTrigger className="h-8 text-xs">
                     <SelectValue placeholder="Default" />
                   </SelectTrigger>
                   <SelectContent>
                     {SORT_OPTIONS.map(o => (
-                      <SelectItem key={o.value} value={o.value || '__default'} className="text-xs">{o.label}</SelectItem>
+                      <SelectItem key={o.value} value={o.value} className="text-xs">{o.label}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -270,9 +270,7 @@ const OpportunitiesTab = forwardRef<HTMLDivElement, Record<string, never>>(funct
                 variant="outline"
                 className="min-w-40 btn-game"
                 disabled={loadingMore}
-                onClick={() => {
-                  void loadMore();
-                }}
+                onClick={() => { void loadMore(); }}
               >
                 {loadingMore ? 'Loading...' : 'Load More'}
               </Button>
