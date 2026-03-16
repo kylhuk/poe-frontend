@@ -219,6 +219,39 @@ export async function getAnalyticsReport() {
   return request<ReportAnalytics>('/api/v1/ops/analytics/report');
 }
 
+
+function normalizeMlPredictOneResponse(payload: unknown): MlPredictOneResponse {
+  const source = (payload && typeof payload === 'object') ? payload as Record<string, unknown> : {};
+  const intervalSource = (source.interval && typeof source.interval === 'object')
+    ? source.interval as Record<string, unknown>
+    : {};
+  const p10 = typeof intervalSource.p10 === 'number'
+    ? intervalSource.p10
+    : (typeof source.price_p10 === 'number' ? source.price_p10 : null);
+  const p90 = typeof intervalSource.p90 === 'number'
+    ? intervalSource.p90
+    : (typeof source.price_p90 === 'number' ? source.price_p90 : null);
+  return {
+    predictedValue: typeof source.predictedValue === 'number'
+      ? source.predictedValue
+      : (typeof source.price_p50 === 'number' ? source.price_p50 : 0),
+    currency: typeof source.currency === 'string' && source.currency.trim() ? source.currency : 'chaos',
+    confidence: typeof source.confidence === 'number'
+      ? source.confidence
+      : (typeof source.confidence_percent === 'number' ? source.confidence_percent : 0),
+    interval: { p10, p90 },
+    saleProbabilityPercent: typeof source.saleProbabilityPercent === 'number'
+      ? source.saleProbabilityPercent
+      : (typeof source.sale_probability_percent === 'number' ? source.sale_probability_percent : null),
+    priceRecommendationEligible: typeof source.priceRecommendationEligible === 'boolean'
+      ? source.priceRecommendationEligible
+      : Boolean(source.price_recommendation_eligible),
+    fallbackReason: typeof source.fallbackReason === 'string'
+      ? source.fallbackReason
+      : (typeof source.fallback_reason === 'string' ? source.fallback_reason : ''),
+  };
+}
+
 function buildQueryString(params: Record<string, string | number | undefined>): string {
   const entries = Object.entries(params).filter(([, v]) => v !== undefined && v !== '');
   if (entries.length === 0) return '';
@@ -252,7 +285,10 @@ export const api: ApiService = {
       query.set('strategy_id', requestParams.strategyId);
     }
     if (requestParams?.minConfidence !== undefined) {
-      query.set('min_confidence', String(requestParams.minConfidence));
+      const normalizedConfidence = requestParams.minConfidence > 1
+        ? requestParams.minConfidence / 100
+        : requestParams.minConfidence;
+      query.set('min_confidence', String(normalizedConfidence));
     }
     const queryString = query.toString();
     const path = queryString
@@ -376,10 +412,15 @@ export const api: ApiService = {
 
   async mlPredictOne(req) {
     const league = await primaryLeague();
-    return request<MlPredictOneResponse>(`/api/v1/ml/leagues/${encodeURIComponent(league)}/predict-one`, {
+    const payload = await request<Record<string, unknown>>(`/api/v1/ml/leagues/${encodeURIComponent(league)}/predict-one`, {
       method: 'POST',
-      body: JSON.stringify(req),
+      body: JSON.stringify({
+        input_format: 'poe-clipboard',
+        payload: req.clipboard,
+        output_mode: 'json',
+      }),
     });
+    return normalizeMlPredictOneResponse(payload);
   },
 
   async getStashTabs() {

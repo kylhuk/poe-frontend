@@ -36,13 +36,28 @@ const UserMenu = () => {
   };
 
   const handleOAuthLogin = () => {
-    window.location.href = `${API_BASE}/api/v1/auth/login`;
+      const loginUrl = `${API_BASE}/api/v1/auth/login`;
+    const popup = window.open(
+      loginUrl,
+      'poe-auth',
+      'popup=yes,width=640,height=800,resizable=yes,scrollbars=yes',
+    );
+    if (!popup) {
+      window.location.href = loginUrl;
+      return;
+    }
+    popup.focus();
+    setOpen(false);
   };
 
   if (isLoading) return null;
 
   const connected = sessionState === 'connected' && !!user;
-
+  const handleSignOut = async () => {
+    logout();
+     await signOut();
+     setOpen(false);
+   };
   return (
     <div className="flex items-center gap-2">
       {connected && (

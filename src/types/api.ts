@@ -155,6 +155,7 @@ export interface MlPredictOneResponse {
   interval?: { p10: number | null; p90: number | null };
   saleProbabilityPercent?: number | null;
   fallbackReason?: string;
+  priceRecommendationEligible?: boolean;
 }
 
 // ========== Stash Viewer ==========
@@ -194,7 +195,7 @@ export interface StashStatus {
 }
 
 export interface ScannerSummary {
-  status: 'ok' | 'empty';
+  status: 'ok' | 'empty' | 'stale';
   lastRunAt: string | null;
   recommendationCount: number;
 }

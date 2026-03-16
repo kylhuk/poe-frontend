@@ -70,6 +70,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     refreshSession().finally(() => setIsLoading(false));
   }, [refreshSession]);
 
+  useEffect(() => {
+    const onMessage = (event: MessageEvent) => {
+      if (event.origin !== window.location.origin) {
+        return;
+      }
+      const data = event.data;
+      if (!data || typeof data !== 'object' || data.type !== 'poe_auth_callback_complete') {
+        return;
+      }
+      void refreshSession();
+    };
+    window.addEventListener('message', onMessage);
+    return () => window.removeEventListener('message', onMessage);
+  }, [refreshSession]);
+
   const login = useCallback(async (poeSessionId: string): Promise<boolean> => {
     try {
       const response = await fetch(`${API_BASE}/api/v1/auth/session`, {

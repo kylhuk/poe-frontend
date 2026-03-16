@@ -45,7 +45,7 @@ const Index = () => {
               <BarChart3 className="h-3.5 w-3.5" /> Analytics
             </TabsTrigger>
             <TabsTrigger data-testid="tab-pricecheck" value="pricecheck" className="tab-game gap-1.5 text-xs data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-              <Search className="h-3.5 w-3.5" /> Price Check
+              <Search className="h-3.5 w-3.5" /> ML Price
             </TabsTrigger>
             <TabsTrigger data-testid="tab-stash" value="stash" className="tab-game gap-1.5 text-xs data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
               <Grid3X3 className="h-3.5 w-3.5" /> Stash Viewer
