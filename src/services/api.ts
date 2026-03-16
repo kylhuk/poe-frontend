@@ -1,13 +1,21 @@
 import type {
   ApiService,
   AppMessage,
+  DashboardResponse,
   FairValueItem,
   GearSwapResult,
   GemState,
   GoldShadowData,
   HeistDrop,
+  MlAutomationHistory,
+  MlAutomationStatus,
+  MlPredictOneRequest,
+  MlPredictOneResponse,
   PriceCheckRequest,
   PriceCheckResponse,
+  ScannerFilterOptions,
+  ScannerRecommendation,
+  ScannerSummary,
   Service,
   SessionRecommendation,
   ShipmentRecommendation,
@@ -17,6 +25,7 @@ import type {
   ScannerRecommendationsResponse,
   ScannerSummary,
   StaleListingOpp,
+  StashStatus,
   StashTab,
 } from '@/types/api';
 
@@ -51,13 +60,54 @@ export interface BacktestAnalytics {
   totals: { summary: number; detail: number };
 }
 
+export interface MlCandidateComparison {
+  candidate_run_id: string;
+  incumbent_run_id: string;
+  candidate_avg_mdape: number;
+  incumbent_avg_mdape: number;
+  candidate_avg_interval_coverage: number;
+  incumbent_avg_interval_coverage: number;
+  mdape_improvement: number;
+  coverage_delta: number;
+  coverage_floor_ok: boolean;
+}
+
+export interface MlStatus {
+  league: string;
+  run: string;
+  status: string;
+  promotion_verdict: string;
+  stop_reason: string;
+  active_model_version: string | null;
+  latest_avg_mdape: number;
+  latest_avg_interval_coverage: number;
+  candidate_vs_incumbent: MlCandidateComparison;
+  route_hotspots: unknown[];
+}
+
 export interface MlAnalytics {
-  status: Record<string, unknown>;
+  status: MlStatus;
+}
+
+export interface ReportData {
+  league: string;
+  recommendations: number;
+  alerts: number;
+  journal_events: number;
+  journal_positions: number;
+  backtest_summary_rows: number;
+  backtest_detail_rows: number;
+  gold_currency_ref_hour_rows: number;
+  gold_listing_ref_hour_rows: number;
+  gold_liquidity_ref_hour_rows: number;
+  gold_bulk_premium_hour_rows: number;
+  gold_set_ref_hour_rows: number;
+  realized_pnl_chaos: number;
 }
 
 export interface ReportAnalytics {
   status: string;
-  report: Record<string, unknown>;
+  report: ReportData;
 }
 
 type ApiErrorPayload = {
@@ -169,7 +219,17 @@ export async function getAnalyticsReport() {
   return request<ReportAnalytics>('/api/v1/ops/analytics/report');
 }
 
+function buildQueryString(params: Record<string, string | number | undefined>): string {
+  const entries = Object.entries(params).filter(([, v]) => v !== undefined && v !== '');
+  if (entries.length === 0) return '';
+  return '?' + entries.map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(String(v))}`).join('&');
+}
+
 export const api: ApiService = {
+  async getDashboard() {
+    return request<DashboardResponse>('/api/v1/ops/dashboard');
+  },
+
   async getScannerSummary() {
     return request<ScannerSummary>('/api/v1/ops/scanner/summary');
   },
@@ -214,12 +274,12 @@ export const api: ApiService = {
 
   async getMlAutomationStatus() {
     const league = await primaryLeague();
-    return request<Record<string, unknown>>(`/api/v1/ml/leagues/${encodeURIComponent(league)}/automation/status`);
+    return request<MlAutomationStatus>(`/api/v1/ml/leagues/${encodeURIComponent(league)}/automation/status`);
   },
 
   async getMlAutomationHistory() {
     const league = await primaryLeague();
-    return request<Record<string, unknown>>(`/api/v1/ml/leagues/${encodeURIComponent(league)}/automation/history`);
+    return request<MlAutomationHistory>(`/api/v1/ml/leagues/${encodeURIComponent(league)}/automation/history`);
   },
 
   async getServices() {
@@ -309,6 +369,14 @@ export const api: ApiService = {
   async priceCheck(req) {
     const league = await primaryLeague();
     return request<PriceCheckResponse>(`/api/v1/ops/leagues/${league}/price-check`, {
+      method: 'POST',
+      body: JSON.stringify(req),
+    });
+  },
+
+  async mlPredictOne(req) {
+    const league = await primaryLeague();
+    return request<MlPredictOneResponse>(`/api/v1/ml/leagues/${encodeURIComponent(league)}/predict-one`, {
       method: 'POST',
       body: JSON.stringify(req),
     });

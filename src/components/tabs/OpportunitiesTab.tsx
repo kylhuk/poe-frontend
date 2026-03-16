@@ -65,6 +65,7 @@ const OpportunitiesTab = forwardRef<HTMLDivElement, Record<string, never>>(funct
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showFilters, setShowFilters] = useState(false);
   const mouseGlow = useMouseGlow();
   const requestVersionRef = useRef(0);
 
@@ -135,6 +136,27 @@ const OpportunitiesTab = forwardRef<HTMLDivElement, Record<string, never>>(funct
   const recommendations = recommendationResponse.recommendations;
   const canLoadMore = recommendationResponse.meta.hasMore && recommendationResponse.meta.nextCursor;
 
+  useEffect(() => {
+    fetchData({});
+  }, [fetchData]);
+
+  const applyFilters = () => {
+    fetchData({
+      sort: sort || undefined,
+      limit,
+      min_confidence: minConfidence > 0 ? minConfidence : undefined,
+      strategy_id: strategyId.trim() || undefined,
+    });
+  };
+
+  const clearFilters = () => {
+    setSort('');
+    setMinConfidence(0);
+    setStrategyId('');
+    setLimit(50);
+    fetchData({});
+  };
+
   if (loading) {
     return <div ref={ref} data-testid="panel-opportunities-root"><RenderState kind="loading" message="Scanning market..." /></div>;
   }
@@ -165,7 +187,71 @@ const OpportunitiesTab = forwardRef<HTMLDivElement, Record<string, never>>(funct
             </Button>
           ))}
         </div>
+        <Button variant="ghost" size="sm" className="gap-1.5 text-xs" onClick={() => setShowFilters(!showFilters)}>
+          <Filter className="h-3.5 w-3.5" />
+          Filters
+        </Button>
       </div>
+
+      {/* Filter controls */}
+      {showFilters && (
+        <Card className="card-game animate-scale-fade-in">
+          <CardContent className="p-4 space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="space-y-1.5">
+                <Label className="text-xs">Sort</Label>
+                <Select value={sort} onValueChange={setSort}>
+                  <SelectTrigger className="h-8 text-xs">
+                    <SelectValue placeholder="Default" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {SORT_OPTIONS.map(o => (
+                      <SelectItem key={o.value} value={o.value || '__default'} className="text-xs">{o.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Strategy ID</Label>
+                <Input
+                  value={strategyId}
+                  onChange={e => setStrategyId(e.target.value)}
+                  placeholder="e.g. stale_listing"
+                  className="h-8 text-xs font-mono"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Min Confidence: {minConfidence}%</Label>
+                <Slider
+                  value={[minConfidence]}
+                  onValueChange={([v]) => setMinConfidence(v)}
+                  min={0}
+                  max={100}
+                  step={5}
+                  className="mt-2"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Limit</Label>
+                <Input
+                  type="number"
+                  value={limit}
+                  onChange={e => setLimit(Number(e.target.value) || 50)}
+                  min={1}
+                  max={500}
+                  className="h-8 text-xs font-mono"
+                />
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <Button size="sm" className="text-xs h-7 btn-game" onClick={applyFilters}>Apply</Button>
+              <Button size="sm" variant="ghost" className="text-xs h-7 gap-1" onClick={clearFilters}>
+                <X className="h-3 w-3" /> Clear
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {recommendations.length === 0 ? (
         <RenderState kind="empty" message="No opportunities found in the latest scan." />

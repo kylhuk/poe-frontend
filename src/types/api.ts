@@ -143,6 +143,20 @@ export interface PriceCheckResponse {
   fallbackReason?: string;
 }
 
+// ========== ML Predict One ==========
+export interface MlPredictOneRequest {
+  clipboard: string;
+}
+
+export interface MlPredictOneResponse {
+  predictedValue: number;
+  currency: string;
+  confidence: number;
+  interval?: { p10: number | null; p90: number | null };
+  saleProbabilityPercent?: number | null;
+  fallbackReason?: string;
+}
+
 // ========== Stash Viewer ==========
 export type PriceEvaluation = 'well_priced' | 'could_be_better' | 'mispriced';
 export interface StashItem {
@@ -237,14 +251,15 @@ export interface AppMessage {
 
 // ========== API Service Interface ==========
 export interface ApiService {
+  getDashboard(): Promise<DashboardResponse>;
   getScannerSummary(): Promise<ScannerSummary>;
   getScannerRecommendations(
     request?: ScannerRecommendationsRequest
   ): Promise<ScannerRecommendationsResponse>;
   ackAlert(alertId: string): Promise<void>;
   getStashStatus(): Promise<StashStatus>;
-  getMlAutomationStatus(): Promise<Record<string, unknown>>;
-  getMlAutomationHistory(): Promise<Record<string, unknown>>;
+  getMlAutomationStatus(): Promise<MlAutomationStatus>;
+  getMlAutomationHistory(): Promise<MlAutomationHistory>;
 
   getServices(): Promise<Service[]>;
   startService(id: string): Promise<void>;
@@ -261,6 +276,7 @@ export interface ApiService {
   simulateGearSwap(candidateItem: string): Promise<GearSwapResult>;
 
   priceCheck(req: PriceCheckRequest): Promise<PriceCheckResponse>;
+  mlPredictOne(req: MlPredictOneRequest): Promise<MlPredictOneResponse>;
 
   getStashTabs(): Promise<StashTab[]>;
   getMessages(): Promise<AppMessage[]>;

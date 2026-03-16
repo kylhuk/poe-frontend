@@ -1,7 +1,10 @@
 import { forwardRef, useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Badge } from '@/components/ui/badge';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Freshness } from '@/components/shared/StatusIndicators';
+import { CheckCircle2, XCircle } from 'lucide-react';
 import { 
   getAnalyticsIngestion, 
   getAnalyticsScanner, 
@@ -14,8 +17,12 @@ import {
   type AlertRow, 
   type BacktestAnalytics, 
   type MlAnalytics, 
-  type ReportAnalytics 
+  type MlStatus,
+  type ReportAnalytics,
+  type ReportData,
 } from '@/services/api';
+import { api } from '@/services/api';
+import type { MlAutomationStatus, MlAutomationHistory } from '@/types/api';
 import { RenderState } from '@/components/shared/RenderState';
 
 const AnalyticsTab = forwardRef<HTMLDivElement, Record<string, never>>(function AnalyticsTab(_props, ref) {
@@ -190,31 +197,269 @@ function BacktestsPanel() {
   );
 }
 
+function statusColor(status: string): string {
+  if (status.startsWith('passed') || status === 'promoted') return 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30';
+  if (status === 'hold' || status.includes('hold')) return 'bg-amber-500/20 text-amber-400 border-amber-500/30';
+  return 'bg-destructive/20 text-destructive border-destructive/30';
+}
+
+function verdictColor(verdict: string): string {
+  if (verdict === 'promote') return 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30';
+  if (verdict === 'hold') return 'bg-amber-500/20 text-amber-400 border-amber-500/30';
+  return 'bg-destructive/20 text-destructive border-destructive/30';
+}
+
+function humanize(s: string): string {
+  return s.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+}
+
 function MlPanel() {
   const [data, setData] = useState<MlAnalytics | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [automationStatus, setAutomationStatus] = useState<MlAutomationStatus | null>(null);
+  const [automationHistory, setAutomationHistory] = useState<MlAutomationHistory | null>(null);
+  const [automationError, setAutomationError] = useState<string | null>(null);
+
   useEffect(() => { 
     getAnalyticsMl()
       .then(setData)
-      .catch(err => setError(err instanceof Error ? err.message : 'Failed to load ML analytics')); 
+      .catch(err => setError(err instanceof Error ? err.message : 'Failed to load ML analytics'));
+
+    Promise.all([api.getMlAutomationStatus(), api.getMlAutomationHistory()])
+      .then(([status, history]) => {
+        setAutomationStatus(status);
+        setAutomationHistory(history);
+      })
+      .catch(err => setAutomationError(err instanceof Error ? err.message : 'Failed to load automation data'));
   }, []);
 
   if (error) return <RenderState kind="degraded" message={error} />;
   if (!data) return <RenderState kind="empty" message="No ML data available" />;
 
+  const s = data.status as MlStatus;
+  const cmp = s.candidate_vs_incumbent;
+
   return (
-    <Card className="card-game">
-      <CardHeader className="pb-2">
-        <CardTitle className="text-sm font-sans">ML Status</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <pre className="text-xs font-mono text-muted-foreground whitespace-pre-wrap break-all">
-          {JSON.stringify(data.status, null, 2)}
-        </pre>
-      </CardContent>
-    </Card>
+    <div className="space-y-4">
+      {/* Status Header */}
+      <Card className="card-game">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm font-sans">Training Run</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-3 text-xs">
+            <div>
+              <span className="text-muted-foreground">League</span>
+              <p className="font-mono text-foreground">{s.league}</p>
+            </div>
+            <div className="sm:col-span-2">
+              <span className="text-muted-foreground">Run ID</span>
+              <p className="font-mono text-foreground truncate">{s.run}</p>
+            </div>
+            <div>
+              <span className="text-muted-foreground">Status</span>
+              <div className="mt-0.5"><Badge className={statusColor(s.status)}>{humanize(s.status)}</Badge></div>
+            </div>
+            <div>
+              <span className="text-muted-foreground">Verdict</span>
+              <div className="mt-0.5"><Badge className={verdictColor(s.promotion_verdict)}>{humanize(s.promotion_verdict)}</Badge></div>
+            </div>
+            <div>
+              <span className="text-muted-foreground">Active Model</span>
+              <p className="font-mono text-foreground">{s.active_model_version ?? 'None'}</p>
+            </div>
+            <div className="col-span-2 sm:col-span-3">
+              <span className="text-muted-foreground">Stop Reason</span>
+              <p className="font-mono text-foreground">{humanize(s.stop_reason)}</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Metrics */}
+      <div className="grid grid-cols-2 gap-4">
+        <Card className="card-game">
+          <CardContent className="p-4 text-center">
+            <span className="text-xs text-muted-foreground">Avg MDAPE</span>
+            <p className="text-lg font-mono text-foreground">{(s.latest_avg_mdape * 100).toFixed(1)}%</p>
+          </CardContent>
+        </Card>
+        <Card className="card-game">
+          <CardContent className="p-4 text-center">
+            <span className="text-xs text-muted-foreground">Interval Coverage</span>
+            <p className="text-lg font-mono text-foreground">{(s.latest_avg_interval_coverage * 100).toFixed(1)}%</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Candidate vs Incumbent */}
+      {cmp && (
+        <Card className="card-game">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-sans">Candidate vs Incumbent</CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="text-xs">Metric</TableHead>
+                  <TableHead className="text-xs">Candidate</TableHead>
+                  <TableHead className="text-xs">Incumbent</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                <TableRow>
+                  <TableCell className="text-xs text-muted-foreground">Run ID</TableCell>
+                  <TableCell className="text-xs font-mono truncate max-w-[140px]">{cmp.candidate_run_id}</TableCell>
+                  <TableCell className="text-xs font-mono truncate max-w-[140px]">{cmp.incumbent_run_id}</TableCell>
+                </TableRow>
+                <TableRow>
+                  <TableCell className="text-xs text-muted-foreground">Avg MDAPE</TableCell>
+                  <TableCell className="text-xs font-mono">{(cmp.candidate_avg_mdape * 100).toFixed(1)}%</TableCell>
+                  <TableCell className="text-xs font-mono">{(cmp.incumbent_avg_mdape * 100).toFixed(1)}%</TableCell>
+                </TableRow>
+                <TableRow>
+                  <TableCell className="text-xs text-muted-foreground">Interval Coverage</TableCell>
+                  <TableCell className="text-xs font-mono">{(cmp.candidate_avg_interval_coverage * 100).toFixed(1)}%</TableCell>
+                  <TableCell className="text-xs font-mono">{(cmp.incumbent_avg_interval_coverage * 100).toFixed(1)}%</TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
+            <div className="flex items-center gap-6 px-4 py-3 border-t border-border text-xs">
+              <span className="text-muted-foreground">MDAPE Δ: <span className="font-mono text-foreground">{(cmp.mdape_improvement * 100).toFixed(1)}%</span></span>
+              <span className="text-muted-foreground">Coverage Δ: <span className="font-mono text-foreground">{(cmp.coverage_delta * 100).toFixed(1)}%</span></span>
+              <span className="text-muted-foreground flex items-center gap-1">
+                Floor OK: {cmp.coverage_floor_ok
+                  ? <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
+                  : <XCircle className="h-3.5 w-3.5 text-destructive" />}
+              </span>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Route Hotspots */}
+      {s.route_hotspots.length > 0 ? (
+        <Card className="card-game">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-sans">Route Hotspots</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <pre className="text-xs font-mono text-muted-foreground whitespace-pre-wrap break-all">
+              {JSON.stringify(s.route_hotspots, null, 2)}
+            </pre>
+          </CardContent>
+        </Card>
+      ) : (
+        <p className="text-xs text-muted-foreground text-center py-2">No route hotspots</p>
+      )}
+
+      {/* ML Automation Section */}
+      <MlAutomationPanel status={automationStatus} history={automationHistory} error={automationError} />
+    </div>
   );
 }
+
+function MlAutomationPanel({ status, history, error }: { status: MlAutomationStatus | null; history: MlAutomationHistory | null; error: string | null }) {
+  if (error) {
+    return (
+      <Card className="card-game">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm font-sans">ML Automation</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <RenderState kind="degraded" message={error} />
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Automation Status */}
+      {status && (
+        <Card className="card-game">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-sans">Automation Status</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-3 text-xs">
+              <div>
+                <span className="text-muted-foreground">League</span>
+                <p className="font-mono text-foreground">{status.league}</p>
+              </div>
+              <div>
+                <span className="text-muted-foreground">Active Model</span>
+                <p className="font-mono text-foreground">{status.active_model_version ?? 'None'}</p>
+              </div>
+              <div>
+                <span className="text-muted-foreground">Automation</span>
+                <div className="mt-0.5">
+                  <Badge className={status.automation_enabled ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' : 'bg-destructive/20 text-destructive border-destructive/30'}>
+                    {status.automation_enabled ? 'Enabled' : 'Disabled'}
+                  </Badge>
+                </div>
+              </div>
+              {status.latest_run && (
+                <>
+                  <div className="col-span-2 sm:col-span-3">
+                    <span className="text-muted-foreground">Latest Run</span>
+                    <div className="flex items-center gap-3 mt-1">
+                      <span className="font-mono text-foreground truncate">{status.latest_run.run_id}</span>
+                      <Badge className={statusColor(status.latest_run.status)}>{humanize(status.latest_run.status)}</Badge>
+                      <Badge className={verdictColor(status.latest_run.promotion_verdict)}>{humanize(status.latest_run.promotion_verdict)}</Badge>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Run History */}
+      {history && history.runs.length > 0 && (
+        <Card className="card-game">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-sans">Run History</CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="text-xs">Run ID</TableHead>
+                  <TableHead className="text-xs">Status</TableHead>
+                  <TableHead className="text-xs">Verdict</TableHead>
+                  <TableHead className="text-xs">Model</TableHead>
+                  <TableHead className="text-xs">Stop Reason</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {history.runs.map(run => (
+                  <TableRow key={run.run_id}>
+                    <TableCell className="text-xs font-mono truncate max-w-[120px]">{run.run_id}</TableCell>
+                    <TableCell><Badge className={`text-xs ${statusColor(run.status)}`}>{humanize(run.status)}</Badge></TableCell>
+                    <TableCell><Badge className={`text-xs ${verdictColor(run.promotion_verdict)}`}>{humanize(run.promotion_verdict)}</Badge></TableCell>
+                    <TableCell className="text-xs font-mono">{run.model_version ?? '—'}</TableCell>
+                    <TableCell className="text-xs text-muted-foreground">{humanize(run.stop_reason)}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+}
+
+const GOLD_LABELS: { key: keyof ReportData; label: string }[] = [
+  { key: 'gold_currency_ref_hour_rows', label: 'Currency Ref' },
+  { key: 'gold_listing_ref_hour_rows', label: 'Listing Ref' },
+  { key: 'gold_liquidity_ref_hour_rows', label: 'Liquidity Ref' },
+  { key: 'gold_bulk_premium_hour_rows', label: 'Bulk Premium' },
+  { key: 'gold_set_ref_hour_rows', label: 'Set Ref' },
+];
 
 function ReportsPanel() {
   const [data, setData] = useState<ReportAnalytics | null>(null);
@@ -228,16 +473,75 @@ function ReportsPanel() {
   if (error) return <RenderState kind="degraded" message={error} />;
   if (!data || data.status === 'empty') return <RenderState kind="empty" message="No report data available" />;
 
+  const r = data.report as ReportData;
+
   return (
-    <Card className="card-game">
-      <CardHeader className="pb-2">
-        <CardTitle className="text-sm font-sans">Daily Report</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <pre className="text-xs font-mono text-muted-foreground whitespace-pre-wrap break-all">
-          {JSON.stringify(data.report, null, 2)}
-        </pre>
-      </CardContent>
-    </Card>
+    <div className="space-y-4">
+      {/* Header: League + PnL */}
+      <Card className="card-game">
+        <CardContent className="p-4 flex items-center justify-between">
+          <div className="text-xs">
+            <span className="text-muted-foreground">League</span>
+            <p className="font-mono text-foreground">{r.league}</p>
+          </div>
+          <div className="text-right">
+            <span className="text-xs text-muted-foreground">Realized PnL</span>
+            <p className="text-lg font-mono text-foreground">
+              {r.realized_pnl_chaos.toLocaleString()}<span className="text-xs text-muted-foreground ml-1">chaos</span>
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Activity Counts */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        {([
+          ['Recommendations', r.recommendations],
+          ['Alerts', r.alerts],
+          ['Journal Events', r.journal_events],
+          ['Journal Positions', r.journal_positions],
+        ] as const).map(([label, val]) => (
+          <Card key={label} className="card-game">
+            <CardContent className="p-4 text-center">
+              <span className="text-xs text-muted-foreground">{label}</span>
+              <p className="text-lg font-mono text-foreground">{val}</p>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      {/* Backtest Counts */}
+      <div className="grid grid-cols-2 gap-4">
+        <Card className="card-game">
+          <CardContent className="p-4 text-center">
+            <span className="text-xs text-muted-foreground">Backtest Summary Rows</span>
+            <p className="text-lg font-mono text-foreground">{r.backtest_summary_rows}</p>
+          </CardContent>
+        </Card>
+        <Card className="card-game">
+          <CardContent className="p-4 text-center">
+            <span className="text-xs text-muted-foreground">Backtest Detail Rows</span>
+            <p className="text-lg font-mono text-foreground">{r.backtest_detail_rows}</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Gold Reference Data */}
+      <Card className="card-game">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm font-sans">Gold Reference Data</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-x-6 gap-y-3 text-xs">
+            {GOLD_LABELS.map(({ key, label }) => (
+              <div key={key}>
+                <span className="text-muted-foreground">{label}</span>
+                <p className="font-mono text-foreground">{(r[key] as number).toLocaleString()} rows</p>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+    </div>
   );
 }
