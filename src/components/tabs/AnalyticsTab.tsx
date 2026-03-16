@@ -175,11 +175,12 @@ function AlertsPanel() {
 function BacktestsPanel() {
   const [data, setData] = useState<BacktestAnalytics | null>(null);
   const [error, setError] = useState<string | null>(null);
-  useEffect(() => { 
+  const load = useCallback(() => {
     getAnalyticsBacktests()
       .then(setData)
-      .catch(err => setError(err instanceof Error ? err.message : 'Failed to load backtests analytics')); 
+      .catch(err => setError(err instanceof Error ? err.message : 'Failed to load backtests analytics'));
   }, []);
+  useEffect(() => { load(); const iv = setInterval(load, 5_000); return () => clearInterval(iv); }, [load]);
 
   if (error) return <RenderState kind="degraded" message={error} />;
   if (!data || data.rows.length === 0) return <RenderState kind="empty" message="No backtest data available" />;
