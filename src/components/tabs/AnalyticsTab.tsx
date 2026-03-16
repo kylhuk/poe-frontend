@@ -978,7 +978,7 @@ function PricingOutliersPanel() {
       </Card>
 
       {error && <RenderState kind="degraded" message={error} />}
-      {!error && !data && <RenderState kind="empty" message="Loading too-cheap pricing analysis…" />}
+      {!error && !data && <RenderState kind="loading" message="Loading too-cheap pricing analysis…" />}
 
       {data && (
         <>
