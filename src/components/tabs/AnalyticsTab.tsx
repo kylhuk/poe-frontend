@@ -114,11 +114,12 @@ function IngestionPanel() {
 function ScannerPanel() {
   const [items, setItems] = useState<ScannerRow[]>([]);
   const [error, setError] = useState<string | null>(null);
-  useEffect(() => { 
+  const load = useCallback(() => {
     getAnalyticsScanner()
       .then(setItems)
-      .catch(err => setError(err instanceof Error ? err.message : 'Failed to load scanner analytics')); 
+      .catch(err => setError(err instanceof Error ? err.message : 'Failed to load scanner analytics'));
   }, []);
+  useEffect(() => { load(); const iv = setInterval(load, 5_000); return () => clearInterval(iv); }, [load]);
 
   if (error) return <RenderState kind="degraded" message={error} />;
   if (items.length === 0) return <RenderState kind="empty" message="No scanner data available" />;
