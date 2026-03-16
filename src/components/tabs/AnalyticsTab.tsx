@@ -79,11 +79,12 @@ export default AnalyticsTab;
 function IngestionPanel() {
   const [items, setItems] = useState<IngestionRow[]>([]);
   const [error, setError] = useState<string | null>(null);
-  useEffect(() => { 
+  const load = useCallback(() => {
     getAnalyticsIngestion()
       .then(setItems)
-      .catch(err => setError(err instanceof Error ? err.message : 'Failed to load ingestion analytics')); 
+      .catch(err => setError(err instanceof Error ? err.message : 'Failed to load ingestion analytics'));
   }, []);
+  useEffect(() => { load(); const iv = setInterval(load, 5_000); return () => clearInterval(iv); }, [load]);
 
   if (error) return <RenderState kind="degraded" message={error} />;
   if (items.length === 0) return <RenderState kind="empty" message="No ingestion data available" />;
