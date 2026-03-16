@@ -1,4 +1,5 @@
 import { forwardRef, useEffect, useState } from 'react';
+import { Slider } from '@/components/ui/slider';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -253,10 +254,10 @@ function MlPanel() {
   }, []);
 
   if (error) return <RenderState kind="degraded" message={error} />;
-  if (!data) return <RenderState kind="empty" message="No ML data available" />;
+  if (!data?.status) return <RenderState kind="empty" message="No ML data available" />;
 
   const s = data.status as MlStatus;
-  const cmp = s.candidate_vs_incumbent;
+  const cmp = s.candidate_vs_incumbent ?? null;
 
   return (
     <div className="space-y-4">
@@ -300,13 +301,13 @@ function MlPanel() {
         <Card className="card-game">
           <CardContent className="p-4 text-center">
             <span className="text-xs text-muted-foreground">Avg MDAPE</span>
-            <p className="text-lg font-mono text-foreground">{(s.latest_avg_mdape * 100).toFixed(1)}%</p>
+            <p className="text-lg font-mono text-foreground">{s.latest_avg_mdape != null ? (s.latest_avg_mdape * 100).toFixed(1) : '—'}%</p>
           </CardContent>
         </Card>
         <Card className="card-game">
           <CardContent className="p-4 text-center">
             <span className="text-xs text-muted-foreground">Interval Coverage</span>
-            <p className="text-lg font-mono text-foreground">{(s.latest_avg_interval_coverage * 100).toFixed(1)}%</p>
+            <p className="text-lg font-mono text-foreground">{s.latest_avg_interval_coverage != null ? (s.latest_avg_interval_coverage * 100).toFixed(1) : '—'}%</p>
           </CardContent>
         </Card>
       </div>
@@ -819,13 +820,18 @@ function SearchHistoryPanel() {
   const [suggestions, setSuggestions] = useState<SearchSuggestion[]>([]);
   const [data, setData] = useState<SearchHistoryResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
   const [league, setLeague] = useState('');
   const [sort, setSort] = useState('added_on');
   const [order, setOrder] = useState<'asc' | 'desc'>('desc');
   const [priceMin, setPriceMin] = useState<number | undefined>();
   const [priceMax, setPriceMax] = useState<number | undefined>();
+  const [committedPriceMin, setCommittedPriceMin] = useState<number | undefined>();
+  const [committedPriceMax, setCommittedPriceMax] = useState<number | undefined>();
   const [timeFrom, setTimeFrom] = useState<string | undefined>();
   const [timeTo, setTimeTo] = useState<string | undefined>();
+  const [committedTimeFrom, setCommittedTimeFrom] = useState<string | undefined>();
+  const [committedTimeTo, setCommittedTimeTo] = useState<string | undefined>();
 
   useEffect(() => {
     const normalizedQuery = query.trim();
@@ -861,16 +867,17 @@ function SearchHistoryPanel() {
       return;
     }
     let cancelled = false;
+    setLoading(true);
     const timer = window.setTimeout(() => {
       getAnalyticsSearchHistory({
         query: normalizedQuery,
         league,
         sort,
         order,
-        priceMin,
-        priceMax,
-        timeFrom,
-        timeTo,
+        priceMin: committedPriceMin,
+        priceMax: committedPriceMax,
+        timeFrom: committedTimeFrom,
+        timeTo: committedTimeTo,
         limit: 100,
       })
         .then(payload => {
@@ -883,29 +890,22 @@ function SearchHistoryPanel() {
           if (!cancelled) {
             setError(err instanceof Error ? err.message : 'Failed to load search history');
           }
-        });
+        })
+        .finally(() => { if (!cancelled) setLoading(false); });
     }, 250);
     return () => {
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [query, league, sort, order, priceMin, priceMax, timeFrom, timeTo]);
+  }, [query, league, sort, order, committedPriceMin, committedPriceMax, committedTimeFrom, committedTimeTo]);
 
   const priceFloor = data?.filters.price.min ?? 0;
   const priceCeiling = Math.max(data?.filters.price.max ?? 0, priceFloor);
-  const selectedPriceMin = clampNumber(priceMin ?? priceFloor, priceFloor, priceCeiling);
-  const selectedPriceMax = clampNumber(priceMax ?? priceCeiling, selectedPriceMin, priceCeiling);
   const priceStep = calculateStep(priceFloor, priceCeiling);
 
   const timeRangeMin = toUnixMs(data?.filters.datetime.min);
   const timeRangeMax = toUnixMs(data?.filters.datetime.max);
   const hasTimeRange = timeRangeMin !== null && timeRangeMax !== null && timeRangeMax >= timeRangeMin;
-  const selectedTimeMin = hasTimeRange
-    ? clampNumber(toUnixMs(timeFrom) ?? timeRangeMin, timeRangeMin, timeRangeMax)
-    : null;
-  const selectedTimeMax = hasTimeRange
-    ? clampNumber(toUnixMs(timeTo) ?? timeRangeMax, selectedTimeMin ?? timeRangeMin, timeRangeMax)
-    : null;
   const timeStep = hasTimeRange && timeRangeMin !== null && timeRangeMax !== null
     ? calculateStep(timeRangeMin, timeRangeMax)
     : 1;
@@ -923,8 +923,12 @@ function SearchHistoryPanel() {
     setLeague('');
     setPriceMin(undefined);
     setPriceMax(undefined);
+    setCommittedPriceMin(undefined);
+    setCommittedPriceMax(undefined);
     setTimeFrom(undefined);
     setTimeTo(undefined);
+    setCommittedTimeFrom(undefined);
+    setCommittedTimeTo(undefined);
     setSort('added_on');
     setOrder('desc');
   };
@@ -1000,7 +1004,8 @@ function SearchHistoryPanel() {
       </Card>
 
       {error && <RenderState kind="degraded" message={error} />}
-      {!error && !data && (
+      {loading && <RenderState kind="loading" message="Querying ClickHouse…" />}
+      {!error && !loading && !data && (
         <RenderState kind="empty" message="Type at least two characters to search the historical listings index." />
       )}
 
@@ -1020,28 +1025,17 @@ function SearchHistoryPanel() {
                 />
                 <div className="space-y-2">
                   <div className="flex items-center justify-between text-xs text-muted-foreground">
-                    <span>{selectedPriceMin.toFixed(1)}c</span>
-                    <span>{selectedPriceMax.toFixed(1)}c</span>
+                    <span>{(priceMin ?? priceFloor).toFixed(1)}c</span>
+                    <span>{(priceMax ?? priceCeiling).toFixed(1)}c</span>
                   </div>
-                  <input
-                    type="range"
+                  <Slider
                     min={priceFloor}
                     max={priceCeiling}
                     step={priceStep}
-                    value={selectedPriceMin}
-                    onChange={event => setPriceMin(Math.min(Number(event.target.value), selectedPriceMax))}
+                    value={[priceMin ?? priceFloor, priceMax ?? priceCeiling]}
+                    onValueChange={([lo, hi]) => { setPriceMin(lo); setPriceMax(hi); }}
+                    onValueCommit={([lo, hi]) => { setCommittedPriceMin(lo); setCommittedPriceMax(hi); }}
                     disabled={priceFloor === priceCeiling}
-                    className="w-full"
-                  />
-                  <input
-                    type="range"
-                    min={priceFloor}
-                    max={priceCeiling}
-                    step={priceStep}
-                    value={selectedPriceMax}
-                    onChange={event => setPriceMax(Math.max(Number(event.target.value), selectedPriceMin))}
-                    disabled={priceFloor === priceCeiling}
-                    className="w-full"
                   />
                 </div>
               </CardContent>
@@ -1058,37 +1052,26 @@ function SearchHistoryPanel() {
                   buckets={data.histograms.datetime}
                   formatLabel={value => formatShortDate(String(value))}
                 />
-                {hasTimeRange && selectedTimeMin !== null && selectedTimeMax !== null ? (
+                {hasTimeRange ? (
                   <div className="space-y-2">
                     <div className="flex items-center justify-between text-xs text-muted-foreground gap-3">
-                      <span>{formatShortDate(new Date(selectedTimeMin).toISOString())}</span>
-                      <span>{formatShortDate(new Date(selectedTimeMax).toISOString())}</span>
+                      <span>{formatShortDate(new Date(toUnixMs(timeFrom) ?? timeRangeMin!).toISOString())}</span>
+                      <span>{formatShortDate(new Date(toUnixMs(timeTo) ?? timeRangeMax!).toISOString())}</span>
                     </div>
-                    <input
-                      type="range"
-                      min={timeRangeMin}
-                      max={timeRangeMax}
+                    <Slider
+                      min={timeRangeMin!}
+                      max={timeRangeMax!}
                       step={timeStep}
-                      value={selectedTimeMin}
-                      onChange={event => {
-                        const nextMin = Math.min(Number(event.target.value), selectedTimeMax);
-                        setTimeFrom(new Date(nextMin).toISOString());
+                      value={[toUnixMs(timeFrom) ?? timeRangeMin!, toUnixMs(timeTo) ?? timeRangeMax!]}
+                      onValueChange={([lo, hi]) => {
+                        setTimeFrom(new Date(lo).toISOString());
+                        setTimeTo(new Date(hi).toISOString());
+                      }}
+                      onValueCommit={([lo, hi]) => {
+                        setCommittedTimeFrom(new Date(lo).toISOString());
+                        setCommittedTimeTo(new Date(hi).toISOString());
                       }}
                       disabled={timeRangeMin === timeRangeMax}
-                      className="w-full"
-                    />
-                    <input
-                      type="range"
-                      min={timeRangeMin}
-                      max={timeRangeMax}
-                      step={timeStep}
-                      value={selectedTimeMax}
-                      onChange={event => {
-                        const nextMax = Math.max(Number(event.target.value), selectedTimeMin);
-                        setTimeTo(new Date(nextMax).toISOString());
-                      }}
-                      disabled={timeRangeMin === timeRangeMax}
-                      className="w-full"
                     />
                   </div>
                 ) : (
@@ -1240,7 +1223,7 @@ function PricingOutliersPanel() {
       </Card>
 
       {error && <RenderState kind="degraded" message={error} />}
-      {!error && !data && <RenderState kind="empty" message="Loading too-cheap pricing analysis…" />}
+      {!error && !data && <RenderState kind="loading" message="Loading too-cheap pricing analysis…" />}
 
       {data && (
         <>
@@ -1273,13 +1256,13 @@ function PricingOutliersPanel() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="text-xs">Item Name</TableHead>
+                    <TableHead className="text-xs"><button type="button" onClick={() => { if (sort === 'item_name') setOrder(o => o === 'asc' ? 'desc' : 'asc'); else { setSort('item_name'); setOrder('asc'); } }}>Item Name{sort === 'item_name' ? ` ${sortArrow(order)}` : ''}</button></TableHead>
                     <TableHead className="text-xs">Affix Analyzed</TableHead>
-                    <TableHead className="text-xs">10 percentile</TableHead>
-                    <TableHead className="text-xs">Median</TableHead>
-                    <TableHead className="text-xs">90 percentile</TableHead>
-                    <TableHead className="text-xs">Items / week</TableHead>
-                    <TableHead className="text-xs">Items total</TableHead>
+                    <TableHead className="text-xs"><button type="button" onClick={() => { if (sort === 'p10') setOrder(o => o === 'asc' ? 'desc' : 'asc'); else { setSort('p10'); setOrder('asc'); } }}>p10{sort === 'p10' ? ` ${sortArrow(order)}` : ''}</button></TableHead>
+                    <TableHead className="text-xs"><button type="button" onClick={() => { if (sort === 'median') setOrder(o => o === 'asc' ? 'desc' : 'asc'); else { setSort('median'); setOrder('asc'); } }}>Median{sort === 'median' ? ` ${sortArrow(order)}` : ''}</button></TableHead>
+                    <TableHead className="text-xs"><button type="button" onClick={() => { if (sort === 'p90') setOrder(o => o === 'asc' ? 'desc' : 'asc'); else { setSort('p90'); setOrder('asc'); } }}>p90{sort === 'p90' ? ` ${sortArrow(order)}` : ''}</button></TableHead>
+                    <TableHead className="text-xs"><button type="button" onClick={() => { if (sort === 'items_per_week') setOrder(o => o === 'asc' ? 'desc' : 'asc'); else { setSort('items_per_week'); setOrder('desc'); } }}>Items/wk{sort === 'items_per_week' ? ` ${sortArrow(order)}` : ''}</button></TableHead>
+                    <TableHead className="text-xs"><button type="button" onClick={() => { if (sort === 'items_total') setOrder(o => o === 'asc' ? 'desc' : 'asc'); else { setSort('items_total'); setOrder('desc'); } }}>Items total{sort === 'items_total' ? ` ${sortArrow(order)}` : ''}</button></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -1332,7 +1315,7 @@ function MiniHistogram({
           <div key={`${String(bucket.bucketStart)}-${index}`} className="flex-1 h-full flex items-end">
             <div
               title={`${formatLabel(bucket.bucketStart)} → ${formatLabel(bucket.bucketEnd)} · ${bucket.count}`}
-              className="w-full rounded-t bg-secondary border border-border/40"
+              className="w-full rounded-t bg-primary/60 border border-primary/20"
               style={{ height: `${Math.max(12, (bucket.count / maxCount) * 100)}%` }}
             />
           </div>
