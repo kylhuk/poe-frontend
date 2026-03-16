@@ -806,34 +806,23 @@ function SearchHistoryPanel() {
                 {hasTimeRange && selectedTimeMin !== null && selectedTimeMax !== null ? (
                   <div className="space-y-2">
                     <div className="flex items-center justify-between text-xs text-muted-foreground gap-3">
-                      <span>{formatShortDate(new Date(selectedTimeMin).toISOString())}</span>
-                      <span>{formatShortDate(new Date(selectedTimeMax).toISOString())}</span>
+                      <span>{formatShortDate(new Date(toUnixMs(timeFrom) ?? timeRangeMin!).toISOString())}</span>
+                      <span>{formatShortDate(new Date(toUnixMs(timeTo) ?? timeRangeMax!).toISOString())}</span>
                     </div>
-                    <input
-                      type="range"
-                      min={timeRangeMin}
-                      max={timeRangeMax}
+                    <Slider
+                      min={timeRangeMin!}
+                      max={timeRangeMax!}
                       step={timeStep}
-                      value={selectedTimeMin}
-                      onChange={event => {
-                        const nextMin = Math.min(Number(event.target.value), selectedTimeMax);
-                        setTimeFrom(new Date(nextMin).toISOString());
+                      value={[toUnixMs(timeFrom) ?? timeRangeMin!, toUnixMs(timeTo) ?? timeRangeMax!]}
+                      onValueChange={([lo, hi]) => {
+                        setTimeFrom(new Date(lo).toISOString());
+                        setTimeTo(new Date(hi).toISOString());
+                      }}
+                      onValueCommit={([lo, hi]) => {
+                        setCommittedTimeFrom(new Date(lo).toISOString());
+                        setCommittedTimeTo(new Date(hi).toISOString());
                       }}
                       disabled={timeRangeMin === timeRangeMax}
-                      className="w-full"
-                    />
-                    <input
-                      type="range"
-                      min={timeRangeMin}
-                      max={timeRangeMax}
-                      step={timeStep}
-                      value={selectedTimeMax}
-                      onChange={event => {
-                        const nextMax = Math.max(Number(event.target.value), selectedTimeMin);
-                        setTimeTo(new Date(nextMax).toISOString());
-                      }}
-                      disabled={timeRangeMin === timeRangeMax}
-                      className="w-full"
                     />
                   </div>
                 ) : (
