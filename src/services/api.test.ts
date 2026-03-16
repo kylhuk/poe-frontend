@@ -55,7 +55,7 @@ describe('api.getScannerRecommendations', () => {
     });
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
-    const [calledUrl] = fetchMock.mock.calls[0] as [unknown];
+    const calledUrl = (fetchMock.mock.calls[0] as unknown[])[0];
     const parsedUrl = new URL(String(calledUrl));
     expect(parsedUrl.pathname).toBe('/api/v1/ops/scanner/recommendations');
     expect(parsedUrl.searchParams.get('sort')).toBe('liquidity_score');
