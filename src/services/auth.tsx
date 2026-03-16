@@ -161,11 +161,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const login = useCallback(async (poeSessionId: string): Promise<boolean> => {
     try {
-      const response = await fetch(`${API_BASE}/api/v1/auth/session`, {
+      const response = await proxyFetch('/api/v1/auth/session', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ poeSessionId }),
-        credentials: 'include',
       });
       if (!response.ok) {
         logApiError({ path: '/api/v1/auth/session', statusCode: response.status, errorCode: 'auth_login', message: `Login failed (${response.status})` });
@@ -179,9 +178,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [refreshSession]);
 
   const logout = useCallback(() => {
-    fetch(`${API_BASE}/api/v1/auth/logout`, {
+    proxyFetch('/api/v1/auth/logout', {
       method: 'POST',
-      credentials: 'include',
     }).finally(() => {
       setUser(null);
       setSessionState('disconnected');
