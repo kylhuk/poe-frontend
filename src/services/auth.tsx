@@ -1,8 +1,25 @@
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import { User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
-import { API_BASE } from './config';
 import { logApiError } from './apiErrorLog';
+
+const PROJECT_ID = import.meta.env.VITE_SUPABASE_PROJECT_ID;
+const PROXY_URL = `https://${PROJECT_ID}.supabase.co/functions/v1/api-proxy`;
+
+async function proxyFetch(path: string, init?: RequestInit): Promise<Response> {
+  const { data: { session } } = await supabase.auth.getSession();
+  const token = session?.access_token;
+  return fetch(PROXY_URL, {
+    ...init,
+    credentials: 'include',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+      'x-proxy-path': path,
+      ...(init?.headers || {}),
+    },
+  });
+}
 
 export interface AuthUser {
   accountName: string;
