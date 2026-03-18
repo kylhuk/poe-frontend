@@ -77,14 +77,8 @@ Deno.serve(async (req) => {
       });
     }
   }
-  if (!proxyPath) {
-    return new Response(JSON.stringify({ error: "Missing x-proxy-path header" }), {
-      status: 400,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
-  }
 
-  // 4. Forward request to backend with server-side API key
+  // 3. Forward request to backend with server-side API key
   const apiKey = Deno.env.get("VITE_API_KEY");
   const targetUrl = `${API_BASE}${proxyPath}`;
 
