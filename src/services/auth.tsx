@@ -31,11 +31,14 @@ interface SessionPayload {
   expiresAt?: string | null;
 }
 
+export type UserRole = 'public' | 'member' | 'admin';
+
 interface AuthContextValue {
   /* Supabase / Lovable Cloud auth */
   supabaseUser: User | null;
   isAuthenticated: boolean;
   isApproved: boolean;
+  userRole: UserRole;
   signIn: (email: string, password: string) => Promise<string | null>;
   signUp: (email: string, password: string) => Promise<string | null>;
   signOut: () => Promise<void>;
