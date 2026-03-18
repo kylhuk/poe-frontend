@@ -10,7 +10,7 @@ import { API_BASE } from '@/services/config';
 import { toast } from 'sonner';
 
 const UserMenu = () => {
-  const { user, login, logout, sessionState, isLoading, supabaseUser, signOut } = useAuth();
+  const { user, login, logout, sessionState, isLoading, supabaseUser, signOut, isAuthenticated } = useAuth();
   const [value, setValue] = useState('');
   const [showValue, setShowValue] = useState(false);
   const [open, setOpen] = useState(false);
@@ -57,6 +57,15 @@ const UserMenu = () => {
   };
 
   if (isLoading) return null;
+
+  // Public (not logged in): show a simple Sign In link
+  if (!isAuthenticated) {
+    return (
+      <a href="/login" className="text-xs text-primary hover:text-primary/80 font-medium transition-colors">
+        Sign In
+      </a>
+    );
+  }
 
   const connected = sessionState === 'connected' && !!user;
   return (

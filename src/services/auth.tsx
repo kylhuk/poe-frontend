@@ -31,11 +31,14 @@ interface SessionPayload {
   expiresAt?: string | null;
 }
 
+export type UserRole = 'public' | 'member' | 'admin';
+
 interface AuthContextValue {
   /* Supabase / Lovable Cloud auth */
   supabaseUser: User | null;
   isAuthenticated: boolean;
   isApproved: boolean;
+  userRole: UserRole;
   signIn: (email: string, password: string) => Promise<string | null>;
   signUp: (email: string, password: string) => Promise<string | null>;
   signOut: () => Promise<void>;
@@ -53,6 +56,7 @@ const AuthContext = createContext<AuthContextValue>({
   supabaseUser: null,
   isAuthenticated: false,
   isApproved: false,
+  userRole: 'public',
   signIn: async () => null,
   signUp: async () => null,
   signOut: async () => {},
@@ -90,14 +94,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [supabaseUser, setSupabaseUser] = useState<User | null>(null);
   const [supabaseReady, setSupabaseReady] = useState(false);
   const [isApproved, setIsApproved] = useState(false);
+  const [userRole, setUserRole] = useState<UserRole>('public');
 
-  const checkApproval = useCallback(async (userId: string) => {
-    const { data } = await supabase
+  const checkApprovalAndRole = useCallback(async (userId: string) => {
+    const { data: approval } = await supabase
       .from('approved_users')
       .select('id')
       .eq('user_id', userId)
       .maybeSingle();
-    setIsApproved(!!data);
+    setIsApproved(!!approval);
+
+    if (approval) {
+      const { data: roleRow } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', userId)
+        .maybeSingle();
+      setUserRole((roleRow?.role as UserRole) ?? 'member');
+    } else {
+      setUserRole('public');
+    }
   }, []);
 
   useEffect(() => {
@@ -105,9 +121,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSupabaseUser(session?.user ?? null);
       if (session?.user) {
-        checkApproval(session.user.id);
+        checkApprovalAndRole(session.user.id);
       } else {
         setIsApproved(false);
+        setUserRole('public');
       }
     });
 
@@ -115,14 +132,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSupabaseUser(session?.user ?? null);
       if (session?.user) {
-        checkApproval(session.user.id).then(() => setSupabaseReady(true));
+        checkApprovalAndRole(session.user.id).then(() => setSupabaseReady(true));
       } else {
         setSupabaseReady(true);
       }
     });
 
     return () => subscription.unsubscribe();
-  }, [checkApproval]);
+  }, [checkApprovalAndRole]);
 
   const signIn = useCallback(async (email: string, password: string): Promise<string | null> => {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
@@ -213,6 +230,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       supabaseUser,
       isAuthenticated,
       isApproved,
+      userRole,
       signIn,
       signUp,
       signOut: signOutFn,
