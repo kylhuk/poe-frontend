@@ -94,14 +94,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [supabaseUser, setSupabaseUser] = useState<User | null>(null);
   const [supabaseReady, setSupabaseReady] = useState(false);
   const [isApproved, setIsApproved] = useState(false);
+  const [userRole, setUserRole] = useState<UserRole>('public');
 
-  const checkApproval = useCallback(async (userId: string) => {
-    const { data } = await supabase
+  const checkApprovalAndRole = useCallback(async (userId: string) => {
+    const { data: approval } = await supabase
       .from('approved_users')
       .select('id')
       .eq('user_id', userId)
       .maybeSingle();
-    setIsApproved(!!data);
+    setIsApproved(!!approval);
+
+    if (approval) {
+      const { data: roleRow } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', userId)
+        .maybeSingle();
+      setUserRole((roleRow?.role as UserRole) ?? 'member');
+    } else {
+      setUserRole('public');
+    }
   }, []);
 
   useEffect(() => {
