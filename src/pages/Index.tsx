@@ -16,7 +16,7 @@ type TabDef = {
   id: string;
   label: string;
   icon: React.ReactNode;
-  content: React.ReactNode | ((subtab?: string, onSubtabChange?: (s: string) => void) => React.ReactNode);
+  content: React.ReactNode;
   roles: UserRole[];
 };
 
