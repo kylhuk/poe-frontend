@@ -149,6 +149,10 @@ export interface PriceCheckResponse {
   saleProbabilityPercent?: number | null;
   priceRecommendationEligible?: boolean;
   fallbackReason?: string;
+  mlPredicted?: boolean;
+  predictionSource?: string;
+  estimateTrust?: string;
+  estimateWarning?: string | null;
 }
 
 // ========== ML Predict One ==========
