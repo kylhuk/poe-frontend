@@ -493,6 +493,9 @@ function MlPanel() {
         <p className="text-xs text-muted-foreground text-center py-2">No route hotspots</p>
       )}
 
+      {/* ML Rollout Controls */}
+      <RolloutCard />
+
       {/* ML Automation Section */}
       <MlAutomationPanel status={automationStatus} history={automationHistory} error={automationError} />
     </div>
