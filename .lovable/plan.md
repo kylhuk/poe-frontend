@@ -1,78 +1,43 @@
 
 
-## Visualize All Available Backend Data
+## Adjust ML Price Check Tab
 
-### What's missing
+### What changes
 
-After reviewing the backend source code, three significant data sets are being returned by the API but completely ignored by the frontend:
+The backend now returns additional fields on both endpoints that the frontend drops: `mlPredicted`, `predictionSource`, `estimateTrust`, `estimateWarning`, `league`, `route`. The `mlPredictOne` call still uses the legacy request format. The `priceCheck` call does no normalization. The UI doesn't distinguish ML vs static-fallback results.
 
-### 1. Gold Diagnostics (Diagnostics tab)
-The backend's `analytics_report` endpoint already returns a `goldDiagnostics` object containing per-mart health data:
-- Summary: status, martCount, problemMarts, goldEmptyMarts, staleMarts, missingLeagueMarts
-- Per-mart rows: martName, diagnosticState, sourceRowCount, goldRowCount, freshness, lag, league visibility
+### 1. Update types (`src/types/api.ts`)
 
-The Diagnostics tab currently shows "feature_unavailable". This data is already being fetched by the Reports panel but thrown away.
+Add new fields to both response types:
 
-**Plan**: Create a dedicated `getAnalyticsReport` response type that includes `goldDiagnostics`. Either share the data from the existing report call, or add a direct fetch. Build a Diagnostics panel with:
-- Summary cards (mart count, problem count, stale count, missing league count)
-- Status badge (ok / stale / league_gap / degraded / gold_empty)
-- Table of marts with columns: Name, State, Source Rows, Gold Rows, Freshness (min), Lag (min), League Visibility
+- `MlPredictOneResponse`: add `league`, `route`, `mlPredicted`, `predictionSource`, `estimateTrust`, `estimateWarning`
+- `PriceCheckResponse`: add `mlPredicted`, `predictionSource`, `estimateTrust`, `estimateWarning`
+- Change `MlPredictOneRequest` to use `itemText` instead of `clipboard`
 
-### 2. ML Rollout Controls
-The backend exposes `GET /api/v1/ml/leagues/{league}/rollout` and `PUT` for updates. The response includes:
-- shadowMode, cutoverEnabled, candidateModelVersion, incumbentModelVersion
-- effectiveServingModelVersion, updatedAt, lastAction
+### 2. Fix API layer (`src/services/api.ts`)
 
-**Plan**: Add a Rollout card inside the ML panel showing the current rollout state. Display:
-- Shadow mode on/off
-- Cutover enabled on/off
-- Candidate vs Incumbent model versions
-- Effective serving model version
-- Last action and update time
-- Toggle controls for shadow mode and cutover (PUT to update)
+- **`mlPredictOne()`**: Switch from legacy `input_format`/`payload`/`output_mode` body to `{ itemText: text }`. Update normalizer to extract the new fields (`mlPredicted`, `predictionSource`, `estimateTrust`, `estimateWarning`, `league`, `route`) handling both snake_case and camelCase.
+- **`priceCheck()`**: Add normalization (currently raw cast). Extract same new fields plus `comparables`. Send `{ itemText: text.trim() }`.
+- **Error handling**: Parse error envelope `{ error: { code, message } }` in `request()` to surface `backend_unavailable` and `league_not_allowed` as specific error messages.
 
-### 3. Report Gold Diagnostics rendering
-The ReportsPanel already fetches `analytics_report` which includes `goldDiagnostics`, but doesn't render it.
+### 3. Rework PriceCheckTab UI (`src/components/tabs/PriceCheckTab.tsx`)
 
-**Plan**: Add a Gold Diagnostics section to the Reports panel, or share data with the Diagnostics tab.
+- Call `priceCheck` (single call gives prediction + comparables).
+- **Trust indicators**:
+  - When `mlPredicted === false` or `estimateTrust === 'low'`: render an amber warning banner with `estimateWarning` text, dim the prediction value styling.
+  - When `priceRecommendationEligible === false`: show a muted "Not eligible for price recommendation" notice.
+  - When `fallbackReason` is non-empty: show as a warning badge (already partially done, make more prominent).
+- **New data display**:
+  - Show `predictionSource` and `route` as small metadata chips below the prediction value.
+  - Show `league` in the header area.
+- **Error states**:
+  - `backend_unavailable`: "Model not available — try again later" with a distinct icon.
+  - `league_not_allowed`: "This league is not supported for price checking."
+  - Generic errors: keep current behavior.
+- Add a helper `isLowTrustEstimate(result)` that checks `mlPredicted === false || estimateTrust === 'low' || fallbackReason non-empty`.
 
-### Files to modify
-
-1. **`src/services/api.ts`**
-   - Add `ReportAnalyticsWithDiagnostics` type (or expand existing `ReportAnalytics`)
-   - Add `getGoldDiagnostics()` function (or extract from report response)
-   - Add `getRolloutControls()` and `updateRolloutControls()` functions
-   - Add rollout types
-
-2. **`src/types/api.ts`**
-   - Add `GoldDiagnosticsMart`, `GoldDiagnosticsSummary`, `GoldDiagnosticsResponse` types
-   - Add `RolloutControls` type
-
-3. **`src/components/tabs/AnalyticsTab.tsx`**
-   - Replace Diagnostics tab placeholder with a real `DiagnosticsPanel` showing gold mart health
-   - Add Rollout Controls card to MlPanel
-   - Optionally add gold diagnostics summary to ReportsPanel
-
-### Technical details
-
-- Gold diagnostics data shape (from backend `analytics_gold_diagnostics`):
-```text
-{
-  league, 
-  summary: { status, martCount, problemMarts, goldEmptyMarts, staleMarts, missingLeagueMarts },
-  marts: [{ martName, sourceName, diagnosticState, sourceRowCount, goldRowCount, 
-            sourceLatestAt, goldLatestAt, goldFreshnessMinutes, sourceToGoldLagMinutes,
-            leagueVisibility, sourceLeagueRows, goldLeagueRows, ... }]
-}
-```
-
-- Rollout controls data shape (from backend `_rollout_payload`):
-```text
-{
-  league, shadowMode, cutoverEnabled, candidateModelVersion, incumbentModelVersion,
-  effectiveServingModelVersion, updatedAt, lastAction
-}
-```
-
-- The report endpoint already includes `goldDiagnostics` in its response, so the Diagnostics tab can reuse that data or fetch report and extract it, avoiding an extra API call.
+### Files
+1. `src/types/api.ts` — expand `PriceCheckResponse`, `MlPredictOneResponse`, `MlPredictOneRequest`
+2. `src/services/api.ts` — fix request body format, add normalization for new fields, improve error parsing
+3. `src/components/tabs/PriceCheckTab.tsx` — trust indicators, new field display, error states
 
