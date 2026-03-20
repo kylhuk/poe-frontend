@@ -460,6 +460,17 @@ function normalizeRolloutControls(raw: unknown): RolloutControls {
 }
 
 
+function normalizeTrustFields(source: Record<string, unknown>) {
+  return {
+    mlPredicted: typeof (source.mlPredicted ?? source.ml_predicted) === 'boolean'
+      ? (source.mlPredicted ?? source.ml_predicted) as boolean
+      : undefined,
+    predictionSource: optString(source.predictionSource ?? source.prediction_source) ?? undefined,
+    estimateTrust: optString(source.estimateTrust ?? source.estimate_trust) ?? undefined,
+    estimateWarning: optString(source.estimateWarning ?? source.estimate_warning) ?? null,
+  };
+}
+
 function normalizeMlPredictOneResponse(payload: unknown): MlPredictOneResponse {
   const source = (payload && typeof payload === 'object') ? payload as Record<string, unknown> : {};
   const intervalSource = (source.interval && typeof source.interval === 'object')
@@ -489,6 +500,45 @@ function normalizeMlPredictOneResponse(payload: unknown): MlPredictOneResponse {
     fallbackReason: typeof source.fallbackReason === 'string'
       ? source.fallbackReason
       : (typeof source.fallback_reason === 'string' ? source.fallback_reason : ''),
+    league: optString(source.league) ?? undefined,
+    route: optString(source.route) ?? undefined,
+    ...normalizeTrustFields(source),
+  };
+}
+
+function normalizePriceCheckResponse(payload: unknown): PriceCheckResponse {
+  const source = (payload && typeof payload === 'object') ? payload as Record<string, unknown> : {};
+  const intervalSource = (source.interval && typeof source.interval === 'object')
+    ? source.interval as Record<string, unknown>
+    : {};
+  const p10 = typeof intervalSource.p10 === 'number' ? intervalSource.p10 : null;
+  const p90 = typeof intervalSource.p90 === 'number' ? intervalSource.p90 : null;
+  const rawComparables = Array.isArray(source.comparables) ? source.comparables : [];
+  return {
+    predictedValue: typeof source.predictedValue === 'number' ? source.predictedValue : 0,
+    currency: typeof source.currency === 'string' && source.currency.trim() ? source.currency : 'chaos',
+    confidence: typeof source.confidence === 'number' ? source.confidence : 0,
+    interval: { p10, p90 },
+    comparables: rawComparables.map((c: unknown) => {
+      const o = asObject(c);
+      return {
+        name: optString(o.name) ?? '',
+        price: typeof o.price === 'number' ? o.price : 0,
+        currency: optString(o.currency) ?? 'chaos',
+        league: optString(o.league) ?? undefined,
+        addedOn: optString(o.addedOn ?? o.added_on) ?? null,
+      };
+    }),
+    saleProbabilityPercent: typeof source.saleProbabilityPercent === 'number'
+      ? source.saleProbabilityPercent
+      : (typeof source.sale_probability_percent === 'number' ? source.sale_probability_percent : null),
+    priceRecommendationEligible: typeof source.priceRecommendationEligible === 'boolean'
+      ? source.priceRecommendationEligible
+      : Boolean(source.price_recommendation_eligible),
+    fallbackReason: typeof source.fallbackReason === 'string'
+      ? source.fallbackReason
+      : (typeof source.fallback_reason === 'string' ? source.fallback_reason : ''),
+    ...normalizeTrustFields(source),
   };
 }
 
