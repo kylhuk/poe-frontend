@@ -84,7 +84,7 @@ const AnalyticsTab = forwardRef<HTMLDivElement, AnalyticsTabProps>(function Anal
       <TabsContent data-testid="analytics-panel-search" value="search"><SearchHistoryPanel /></TabsContent>
       <TabsContent data-testid="analytics-panel-outliers" value="outliers"><PricingOutliersPanel /></TabsContent>
       <TabsContent data-testid="analytics-panel-session" value="session"><RenderState kind="feature_unavailable" message="Session analytics not supported by backend contract" /></TabsContent>
-      <TabsContent data-testid="analytics-panel-diagnostics" value="diagnostics"><RenderState kind="feature_unavailable" message="Diagnostics not supported by backend contract" /></TabsContent>
+      <TabsContent data-testid="analytics-panel-diagnostics" value="diagnostics"><DiagnosticsPanel /></TabsContent>
     </Tabs>
     </div>
   );
