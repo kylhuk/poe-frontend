@@ -28,6 +28,8 @@ import {
   getAnalyticsReport,
   getAnalyticsSearchHistory,
   getAnalyticsSearchSuggestions,
+  getRolloutControls,
+  updateRolloutControls,
   type IngestionRow, 
   type ScannerRow, 
   type AlertRow, 
@@ -37,10 +39,15 @@ import {
   type MlRouteHotspot,
   type ReportAnalytics,
   type ReportData,
+  type GoldDiagnosticsResponse,
+  type RolloutControls,
 } from '@/services/api';
 import { api } from '@/services/api';
 import type { MlAutomationStatus, MlAutomationHistory, PricingOutliersResponse, SearchHistoryResponse, SearchSuggestion } from '@/types/api';
 import { RenderState } from '@/components/shared/RenderState';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
+import { Progress } from '@/components/ui/progress';
 
 interface AnalyticsTabProps {
   subtab?: string;
