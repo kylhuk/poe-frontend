@@ -66,7 +66,7 @@ const AppGate = () => {
     <BrowserRouter>
       <Routes>
         <Route path="/auth/callback" element={<AuthCallback />} />
-        <Route path="/:tab" element={<Index />} />
+        <Route path="/:tab/:subtab?" element={<Index />} />
         <Route path="/" element={<Navigate to={`/${defaultTab}`} replace />} />
         <Route path="*" element={<NotFound />} />
       </Routes>

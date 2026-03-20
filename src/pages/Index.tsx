@@ -80,7 +80,7 @@ const DEFAULT_TAB: Record<UserRole, string> = {
 
 const Index = () => {
   const { userRole } = useAuth();
-  const { tab } = useParams<{ tab?: string }>();
+  const { tab, subtab } = useParams<{ tab?: string; subtab?: string }>();
   const navigate = useNavigate();
 
   const visibleTabs = TABS.filter((t) => t.roles.includes(userRole));
