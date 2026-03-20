@@ -34,6 +34,7 @@ import {
   type BacktestAnalytics, 
   type MlAnalytics, 
   type MlStatus,
+  type MlRouteHotspot,
   type ReportAnalytics,
   type ReportData,
 } from '@/services/api';
