@@ -149,11 +149,15 @@ export interface PriceCheckResponse {
   saleProbabilityPercent?: number | null;
   priceRecommendationEligible?: boolean;
   fallbackReason?: string;
+  mlPredicted?: boolean;
+  predictionSource?: string;
+  estimateTrust?: string;
+  estimateWarning?: string | null;
 }
 
 // ========== ML Predict One ==========
 export interface MlPredictOneRequest {
-  clipboard: string;
+  itemText: string;
 }
 
 export interface MlPredictOneResponse {
@@ -164,6 +168,12 @@ export interface MlPredictOneResponse {
   saleProbabilityPercent?: number | null;
   fallbackReason?: string;
   priceRecommendationEligible?: boolean;
+  league?: string;
+  route?: string;
+  mlPredicted?: boolean;
+  predictionSource?: string;
+  estimateTrust?: string;
+  estimateWarning?: string | null;
 }
 
 // ========== Search History Analytics ==========
