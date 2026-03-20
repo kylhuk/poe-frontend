@@ -10,7 +10,7 @@ import { LayoutDashboard, Server, BarChart3, Search, Grid3X3, MessageSquare, Tre
 import UserMenu from "@/components/UserMenu";
 import ApiErrorPanel from "@/components/ApiErrorPanel";
 import { useAuth, type UserRole } from "@/services/auth";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useLocation } from "react-router-dom";
 
 type TabDef = {
   id: string;
@@ -20,7 +20,7 @@ type TabDef = {
   roles: UserRole[];
 };
 
-const TABS: TabDef[] = [
+const makeTabs = (subtab?: string, onSubtabChange?: (s: string) => void): TabDef[] => [
   {
     id: "dashboard",
     label: "Dashboard",
@@ -46,7 +46,7 @@ const TABS: TabDef[] = [
     id: "analytics",
     label: "Analytics",
     icon: <BarChart3 className="h-3.5 w-3.5" />,
-    content: <AnalyticsTab />,
+    content: <AnalyticsTab subtab={subtab} onSubtabChange={onSubtabChange} />,
     roles: ["member", "admin"],
   },
   {
@@ -80,10 +80,15 @@ const DEFAULT_TAB: Record<UserRole, string> = {
 
 const Index = () => {
   const { userRole } = useAuth();
-  const { tab } = useParams<{ tab?: string }>();
+  const { tab, subtab } = useParams<{ tab?: string; subtab?: string }>();
   const navigate = useNavigate();
 
-  const visibleTabs = TABS.filter((t) => t.roles.includes(userRole));
+  const handleSubtabChange = (s: string) => {
+    navigate(`/${tab || "analytics"}/${s}`, { replace: true });
+  };
+
+  const tabs = makeTabs(subtab, handleSubtabChange);
+  const visibleTabs = tabs.filter((t) => t.roles.includes(userRole));
   const defaultTab = DEFAULT_TAB[userRole] || "pricecheck";
 
   // Resolve active tab: use URL param if valid, otherwise default
