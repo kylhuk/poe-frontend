@@ -263,6 +263,7 @@ export interface PricingOutliersRequest {
 export type PriceEvaluation = 'well_priced' | 'could_be_better' | 'mispriced';
 export interface StashItem {
   id: string;
+  fingerprint?: string;
   name: string;
   x: number;
   y: number;
@@ -278,6 +279,12 @@ export interface StashItem {
   priceEvaluation: PriceEvaluation;
   currency: string;
   iconUrl?: string;
+  pricedAt?: string;
+  interval?: { p10: number | null; p90: number | null };
+  priceRecommendationEligible?: boolean;
+  estimateTrust?: string;
+  estimateWarning?: string;
+  fallbackReason?: string;
 }
 
 export interface StashTab {
@@ -293,6 +300,68 @@ export interface StashStatus {
   tabCount: number;
   itemCount: number;
   session: { accountName: string; expiresAt: string } | null;
+  publishedScanId?: string | null;
+  publishedAt?: string | null;
+  scanStatus?: StashScanStatus | null;
+}
+
+export interface StashScanStatus {
+  status: 'idle' | 'running' | 'publishing' | 'published' | 'failed';
+  activeScanId: string | null;
+  publishedScanId: string | null;
+  startedAt: string | null;
+  updatedAt: string | null;
+  publishedAt: string | null;
+  progress: {
+    tabsTotal: number;
+    tabsProcessed: number;
+    itemsTotal: number;
+    itemsProcessed: number;
+  };
+  error: string | null;
+}
+
+export interface StashScanStartResponse {
+  scanId: string | null;
+  status: 'running';
+  startedAt: string | null;
+  accountName: string;
+  league: string;
+  realm: string;
+  deduplicated?: boolean;
+}
+
+export interface StashTabsResponse {
+  scanId: string | null;
+  publishedAt: string | null;
+  isStale: boolean;
+  scanStatus: StashScanStatus | null;
+  stashTabs: StashTab[];
+}
+
+export interface StashItemHistoryEntry {
+  scanId: string;
+  pricedAt: string;
+  predictedValue: number;
+  listedPrice: number | null;
+  currency: string;
+  confidence: number;
+  interval: { p10: number | null; p90: number | null };
+  priceRecommendationEligible: boolean;
+  estimateTrust: string;
+  estimateWarning: string;
+  fallbackReason: string;
+}
+
+export interface StashItemHistoryResponse {
+  fingerprint: string;
+  item: {
+    name: string;
+    itemClass?: string;
+    rarity: string;
+    iconUrl?: string;
+  };
+  history: StashItemHistoryEntry[];
 }
 
 export interface ScannerSummary {
@@ -477,6 +546,9 @@ export interface ApiService {
   priceCheck(req: PriceCheckRequest): Promise<PriceCheckResponse>;
   mlPredictOne(req: MlPredictOneRequest): Promise<MlPredictOneResponse>;
 
-  getStashTabs(): Promise<StashTab[]>;
+  startStashScan(): Promise<StashScanStartResponse>;
+  getStashScanStatus(): Promise<StashScanStatus>;
+  getStashItemHistory(fingerprint: string): Promise<StashItemHistoryResponse>;
+  getStashTabs(): Promise<StashTabsResponse>;
   getMessages(): Promise<AppMessage[]>;
 }

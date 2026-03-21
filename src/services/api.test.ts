@@ -1,4 +1,17 @@
 import { afterEach, describe, expect, test, vi } from 'vitest';
+
+const { getSessionMock } = vi.hoisted(() => ({
+  getSessionMock: vi.fn(),
+}));
+
+vi.mock('@/integrations/supabase/client', () => ({
+  supabase: {
+    auth: {
+      getSession: getSessionMock,
+    },
+  },
+}));
+
 import { api } from './api';
 import type { ScannerRecommendation } from '@/types/api';
 
@@ -32,9 +45,12 @@ const createResponse = (payload: unknown) =>
 describe('api.getScannerRecommendations', () => {
   afterEach(() => {
     vi.restoreAllMocks();
+    vi.unstubAllEnvs();
   });
 
   test('serializes filters into backend query params and returns metadata', async () => {
+    vi.stubEnv('VITE_SUPABASE_PROJECT_ID', 'project-id');
+    getSessionMock.mockResolvedValue({ data: { session: { access_token: 'token-123' } } });
     const responsePayload = {
       recommendations: [sampleRecommendation],
       meta: {
@@ -56,18 +72,23 @@ describe('api.getScannerRecommendations', () => {
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
     const calledUrl = (fetchMock.mock.calls[0] as unknown[])[0];
+    const init = (fetchMock.mock.calls[0] as unknown[])[1] as RequestInit;
     const parsedUrl = new URL(String(calledUrl));
-    expect(parsedUrl.pathname).toBe('/api/v1/ops/scanner/recommendations');
-    expect(parsedUrl.searchParams.get('sort')).toBe('liquidity_score');
-    expect(parsedUrl.searchParams.get('limit')).toBe('5');
-    expect(parsedUrl.searchParams.get('cursor')).toBe('cursor-123');
-    expect(parsedUrl.searchParams.get('league')).toBe('Mirage');
-    expect(parsedUrl.searchParams.get('strategy_id')).toBe('strategy-1');
-    expect(parsedUrl.searchParams.get('min_confidence')).toBe('0.75');
+    expect(parsedUrl.pathname).toBe('/functions/v1/api-proxy');
+    expect((init.headers as Record<string, string>)['x-proxy-path']).toContain('/api/v1/ops/scanner/recommendations');
+    const proxiedUrl = new URL(`https://example.com${(init.headers as Record<string, string>)['x-proxy-path']}`);
+    expect(proxiedUrl.searchParams.get('sort')).toBe('liquidity_score');
+    expect(proxiedUrl.searchParams.get('limit')).toBe('5');
+    expect(proxiedUrl.searchParams.get('cursor')).toBe('cursor-123');
+    expect(proxiedUrl.searchParams.get('league')).toBe('Mirage');
+    expect(proxiedUrl.searchParams.get('strategy_id')).toBe('strategy-1');
+    expect(proxiedUrl.searchParams.get('min_confidence')).toBe('0.75');
     expect(result).toEqual(responsePayload);
   });
 
   test('propagates invalid cursor metadata errors instead of swallowing them', async () => {
+    vi.stubEnv('VITE_SUPABASE_PROJECT_ID', 'project-id');
+    getSessionMock.mockResolvedValue({ data: { session: { access_token: 'token-123' } } });
     const fetchMock = vi.fn(() =>
       Promise.resolve({
         ok: false,

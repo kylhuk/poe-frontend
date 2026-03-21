@@ -1,14 +1,22 @@
-import React, { forwardRef, useEffect, useState } from 'react';
+import React, { forwardRef, useCallback, useEffect, useState } from 'react';
 import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { api } from '@/services/api';
-import type { StashTab, StashItem, PriceEvaluation } from '@/types/api';
+import type {
+  StashItem,
+  StashItemHistoryResponse,
+  StashScanStatus,
+  StashStatus,
+  StashTab,
+  PriceEvaluation,
+} from '@/types/api';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import {
   Coins, Diamond, CircleDot, FlaskConical, Sword, ShieldHalf,
-  FileText, Shirt, HardHat, Crown, ChevronDown, Copy, type LucideIcon,
+  FileText, Shirt, HardHat, Crown, ChevronDown, Copy, Loader2, History, type LucideIcon,
 } from 'lucide-react';
 import { RenderState } from '@/components/shared/RenderState';
 
@@ -41,69 +49,184 @@ function getGridSize(type: StashTab['type']) {
   return type === 'quad' ? 24 : 12;
 }
 
-const API_SCHEMA = `{
-  "stashTabs": [
-    {
-      "id": "string",
-      "name": "string",
-      "type": "normal | quad | currency | map",
-      "items": [
-        {
-          "id": "string",
-          "name": "string",
-          "x": 0,
-          "y": 0,
-          "w": 1,
-          "h": 1,
-          "itemClass": "Currency | Gem | Weapon | Shield | Body Armour | Helmet | Flask | Jewel | Amulet | Belt | Blueprint",
-          "rarity": "normal | magic | rare | unique",
-          "listedPrice": 100,
-          "estimatedPrice": 120,
-          "estimatedPriceConfidence": 85,
-          "priceDeltaChaos": 20,
-          "priceDeltaPercent": 20.0,
-          "priceEvaluation": "well_priced | could_be_better | mispriced",
-          "currency": "chaos | div",
-          "iconUrl": "https://web.poecdn.com/..."
-        }
-      ]
+function renderEmptyCells(grid: number) {
+  const cells: React.ReactNode[] = [];
+  for (let row = 0; row < grid; row += 1) {
+    for (let col = 0; col < grid; col += 1) {
+      cells.push(
+        <div
+          key={`empty-${row}-${col}`}
+          className="stash-empty-cell"
+          style={{
+            gridColumn: col + 1,
+            gridRow: row + 1,
+          }}
+        />
+      );
     }
-  ]
+  }
+  return cells;
+}
+
+const API_SCHEMA = `{
+  "scanId": "string | null",
+  "publishedAt": "ISO-8601 | null",
+  "isStale": false,
+  "scanStatus": {
+    "status": "idle | running | publishing | published | failed"
+  },
+  "stashTabs": []
 }`;
+
+const EMPTY_SCAN_STATUS: StashScanStatus = {
+  status: 'idle',
+  activeScanId: null,
+  publishedScanId: null,
+  startedAt: null,
+  updatedAt: null,
+  publishedAt: null,
+  progress: { tabsTotal: 0, tabsProcessed: 0, itemsTotal: 0, itemsProcessed: 0 },
+  error: null,
+};
 
 const StashViewerTab = forwardRef<HTMLDivElement, Record<string, never>>(function StashViewerTab(_props, ref) {
   const [tabs, setTabs] = useState<StashTab[]>([]);
-  const [status, setStatus] = useState<string>('loading');
+  const [status, setStatus] = useState<StashStatus['status'] | 'loading' | 'degraded'>('loading');
   const [activeTab, setActiveTab] = useState(0);
   const [schemaOpen, setSchemaOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [publishedScanId, setPublishedScanId] = useState<string | null>(null);
+  const [publishedAt, setPublishedAt] = useState<string | null>(null);
+  const [scanStatus, setScanStatus] = useState<StashScanStatus>(EMPTY_SCAN_STATUS);
+  const [scanBusy, setScanBusy] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyPayload, setHistoryPayload] = useState<StashItemHistoryResponse | null>(null);
+
+  const loadPublished = useCallback(async () => {
+    const stashStatus = await api.getStashStatus();
+    setStatus(stashStatus.status);
+    setPublishedScanId(stashStatus.publishedScanId ?? null);
+    setPublishedAt(stashStatus.publishedAt ?? null);
+    setScanStatus(stashStatus.scanStatus ?? EMPTY_SCAN_STATUS);
+    if (stashStatus.connected) {
+      const payload = await api.getStashTabs();
+      setTabs(payload.stashTabs);
+      setPublishedScanId(payload.scanId ?? stashStatus.publishedScanId ?? null);
+      setPublishedAt(payload.publishedAt ?? stashStatus.publishedAt ?? null);
+      if (payload.scanStatus) {
+        setScanStatus(payload.scanStatus);
+      }
+      setActiveTab((current) => (payload.stashTabs[current] ? current : 0));
+    } else {
+      setTabs([]);
+      setActiveTab(0);
+    }
+    setError(null);
+  }, []);
+
   useEffect(() => {
-    api.getStashStatus()
-      .then(async (stashStatus) => {
-        setStatus(stashStatus.status);
-        if (stashStatus.connected) {
-          const rows = await api.getStashTabs();
-          setTabs(rows);
-        } else {
-          setTabs([]);
+    loadPublished().catch((err: unknown) => {
+      setError(err instanceof Error ? err.message : 'Stash feature unavailable');
+      setStatus('degraded');
+    });
+  }, [loadPublished]);
+
+  useEffect(() => {
+    if (!scanBusy) {
+      return;
+    }
+    const timer = window.setInterval(async () => {
+      try {
+        const next = await api.getStashScanStatus();
+        setScanStatus(next);
+        if (next.status === 'published') {
+          window.clearInterval(timer);
+          setScanBusy(false);
+          await loadPublished();
         }
-        setError(null);
-      })
-      .catch((err: unknown) => {
-        setError(err instanceof Error ? err.message : 'Stash feature unavailable');
-        setStatus('degraded');
-      });
+        if (next.status === 'failed') {
+          window.clearInterval(timer);
+          setScanBusy(false);
+          if (next.error) {
+            toast.error(next.error);
+          }
+        }
+      } catch (err) {
+        window.clearInterval(timer);
+        setScanBusy(false);
+        toast.error(err instanceof Error ? err.message : 'Failed to fetch scan status');
+      }
+    }, 1500);
+    return () => window.clearInterval(timer);
+  }, [scanBusy, loadPublished]);
+
+  const startScan = useCallback(async () => {
+    try {
+      const next = await api.startStashScan();
+      setScanStatus((current) => ({
+        ...current,
+        status: 'running',
+        activeScanId: next.scanId,
+        startedAt: next.startedAt,
+        updatedAt: next.startedAt,
+        error: null,
+      }));
+      setScanBusy(true);
+      toast.success(next.deduplicated ? 'Scan already running' : 'Scan started');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to start scan');
+    }
+  }, []);
+
+  const openHistory = useCallback(async (item: StashItem) => {
+    if (!item.fingerprint) {
+      return;
+    }
+    setHistoryLoading(true);
+    setHistoryOpen(true);
+    try {
+      const payload = await api.getStashItemHistory(item.fingerprint);
+      setHistoryPayload(payload);
+    } catch (err) {
+      setHistoryOpen(false);
+      toast.error(err instanceof Error ? err.message : 'Failed to load history');
+    } finally {
+      setHistoryLoading(false);
+    }
   }, []);
 
   const tab = tabs[activeTab];
   const grid = tab ? getGridSize(tab.type) : 12;
+  const runningScan = scanBusy || scanStatus.status === 'running' || scanStatus.status === 'publishing';
 
   return (
     <div ref={ref} className="space-y-3" data-testid="panel-stash-root">
-      {/* PoE-style tab bar */}
+      <div className="flex flex-col gap-3 rounded border border-gold-dim/20 bg-card/60 p-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="space-y-1">
+          <p className="text-sm font-semibold text-foreground">Private Stash</p>
+          <p className="text-xs text-muted-foreground">
+            {publishedScanId ? `Published ${publishedScanId}` : 'No published scan yet'}
+            {publishedAt ? ` · ${publishedAt}` : ''}
+          </p>
+          {(runningScan || scanStatus.error) && (
+            <p className="text-xs text-muted-foreground">
+              {scanStatus.status === 'failed'
+                ? `Last scan failed${scanStatus.error ? `: ${scanStatus.error}` : ''}`
+                : `Scan ${scanStatus.status}: ${scanStatus.progress.tabsProcessed}/${scanStatus.progress.tabsTotal} tabs · ${scanStatus.progress.itemsProcessed}/${scanStatus.progress.itemsTotal} items`}
+            </p>
+          )}
+        </div>
+        <Button onClick={startScan} disabled={runningScan} className="gap-2" aria-label="Scan">
+          {runningScan ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <History className="h-3.5 w-3.5" />}
+          Scan
+        </Button>
+      </div>
+
       <div className="flex items-end gap-0">
         {tabs.map((t, i) => (
           <button
+            type="button"
             data-testid={`stash-tab-${t.id}`}
             key={t.id}
             onClick={() => setActiveTab(i)}
@@ -120,7 +243,6 @@ const StashViewerTab = forwardRef<HTMLDivElement, Record<string, never>>(functio
         ))}
       </div>
 
-      {/* Stash grid */}
       {error && <RenderState kind="degraded" message={error} />}
       {!error && status === 'disconnected' && <RenderState kind="disconnected" message="Connect account to view stash" />}
       {!error && status === 'session_expired' && <RenderState kind="session_expired" message="Session expired, login again" />}
@@ -135,23 +257,13 @@ const StashViewerTab = forwardRef<HTMLDivElement, Record<string, never>>(functio
               gridTemplateRows: `repeat(${grid}, minmax(0, 1fr))`,
             }}
           >
-            {/* Empty cell background for every position */}
-            {Array.from({ length: grid * grid }).map((_, i) => (
-              <div
-                key={`e${i}`}
-                className="stash-empty-cell"
-                style={{
-                  gridColumn: (i % grid) + 1,
-                  gridRow: Math.floor(i / grid) + 1,
-                }}
-              />
-            ))}
-            {/* Items layered on top */}
+            {renderEmptyCells(grid)}
             {tab.items.map(item => (
               <StashCell
-                key={item.id}
+                key={item.fingerprint || item.id}
                 item={item}
                 gridSize={grid}
+                onOpenHistory={openHistory}
                 style={{
                   gridColumn: `${item.x + 1} / span ${item.w}`,
                   gridRow: `${item.y + 1} / span ${item.h}`,
@@ -161,7 +273,6 @@ const StashViewerTab = forwardRef<HTMLDivElement, Record<string, never>>(functio
             ))}
           </div>
 
-          {/* Legend */}
           <div className="flex items-center gap-4 mt-2 px-1 text-[10px] text-muted-foreground">
             <span className="flex items-center gap-1"><span className="w-3 h-2 rounded-sm bg-[hsl(140,60%,15%,0.5)]" /> Well priced</span>
             <span className="flex items-center gap-1"><span className="w-3 h-2 rounded-sm bg-[hsl(35,80%,15%,0.5)]" /> Could be better</span>
@@ -170,7 +281,6 @@ const StashViewerTab = forwardRef<HTMLDivElement, Record<string, never>>(functio
         </div>
       )}
 
-      {/* API JSON Schema */}
       <Collapsible open={schemaOpen} onOpenChange={setSchemaOpen}>
         <CollapsibleTrigger asChild>
           <Button variant="ghost" size="sm" className="text-xs text-muted-foreground gap-1.5">
@@ -194,6 +304,33 @@ const StashViewerTab = forwardRef<HTMLDivElement, Record<string, never>>(functio
           </div>
         </CollapsibleContent>
       </Collapsible>
+
+      <Dialog open={historyOpen} onOpenChange={setHistoryOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{historyPayload?.item.name || 'Item history'}</DialogTitle>
+            <DialogDescription>
+              {historyPayload?.item.itemClass || ''}
+            </DialogDescription>
+          </DialogHeader>
+          {historyLoading && <p className="text-sm text-muted-foreground">Loading history...</p>}
+          {!historyLoading && historyPayload && (
+            <div className="space-y-3">
+              {historyPayload.history.map(entry => (
+                <div key={`${entry.scanId}-${entry.pricedAt}`} className="rounded border border-border p-3 text-sm">
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="font-medium">{entry.predictedValue}{entry.currency === 'div' ? ' div' : ' c'}</span>
+                    <span className="text-xs text-muted-foreground">{entry.pricedAt}</span>
+                  </div>
+                  <div className="mt-1 text-xs text-muted-foreground">
+                    Confidence {entry.confidence}% · p10 {entry.interval.p10 ?? 'n/a'} · p90 {entry.interval.p90 ?? 'n/a'}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 });
@@ -201,7 +338,7 @@ const StashViewerTab = forwardRef<HTMLDivElement, Record<string, never>>(functio
 StashViewerTab.displayName = 'StashViewerTab';
 export default StashViewerTab;
 
-function StashCell({ item, gridSize, style }: { item: StashItem; gridSize: number; style: React.CSSProperties }) {
+function StashCell({ item, gridSize, style, onOpenHistory }: { item: StashItem; gridSize: number; style: React.CSSProperties; onOpenHistory: (item: StashItem) => void }) {
   const isQuad = gridSize === 24;
   const IconComp = item.itemClass ? ITEM_CLASS_ICONS[item.itemClass] : null;
   const iconSize = isQuad ? 10 : 18;
@@ -210,11 +347,13 @@ function StashCell({ item, gridSize, style }: { item: StashItem; gridSize: numbe
   return (
     <HoverCard openDelay={80} closeDelay={50}>
       <HoverCardTrigger asChild>
-        <div
-          className={cn('stash-item-cell group', EVAL_BG[item.priceEvaluation])}
+        <button
+          type="button"
+          data-testid={item.fingerprint ? `stash-item-history-${item.fingerprint}` : undefined}
+          onClick={() => onOpenHistory(item)}
+          className={cn('stash-item-cell group text-left', EVAL_BG[item.priceEvaluation])}
           style={style}
         >
-          {/* Icon */}
           {IconComp && (
             <IconComp
               size={iconSize}
@@ -226,8 +365,6 @@ function StashCell({ item, gridSize, style }: { item: StashItem; gridSize: numbe
               )}
             />
           )}
-
-          {/* Visible name */}
           <span className={cn(
             'leading-tight text-center truncate w-full px-0.5',
             RARITY_COLOR[item.rarity],
@@ -235,14 +372,12 @@ function StashCell({ item, gridSize, style }: { item: StashItem; gridSize: numbe
           )}>
             {item.name}
           </span>
-
-          {/* Tiny price */}
           {!isQuad && (
             <span className="absolute bottom-0.5 left-0.5 text-[6px] font-mono text-gold-bright/50">
               {item.estimatedPrice}{cur}
             </span>
           )}
-        </div>
+        </button>
       </HoverCardTrigger>
       <HoverCardContent side="right" className="w-56 p-3 space-y-2 bg-card border-gold-dim/40">
         <div className="space-y-1">
@@ -268,10 +403,8 @@ function StashCell({ item, gridSize, style }: { item: StashItem; gridSize: numbe
             <span className="font-mono">{item.listedPrice != null ? `${item.listedPrice} ${cur}` : 'N/A'}</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-muted-foreground">Delta</span>
-            <span className={cn('font-mono', item.priceDeltaChaos > 0 ? 'text-success' : item.priceDeltaChaos < 0 ? 'text-destructive' : 'text-muted-foreground')}>
-              {item.priceDeltaChaos > 0 ? '+' : ''}{item.priceDeltaChaos}c ({item.priceDeltaPercent > 0 ? '+' : ''}{item.priceDeltaPercent}%)
-            </span>
+            <span className="text-muted-foreground">Band</span>
+            <span className="font-mono">{item.interval?.p10 ?? 'n/a'} - {item.interval?.p90 ?? 'n/a'}</span>
           </div>
         </div>
         <div className={cn('flex items-center gap-1.5 pt-1 border-t border-border text-xs text-muted-foreground')}>

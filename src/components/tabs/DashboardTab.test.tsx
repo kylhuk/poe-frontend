@@ -6,17 +6,14 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import DashboardTab from './DashboardTab';
 import type {
-  AppMessage,
+  DashboardResponse,
   ScannerRecommendation,
-  ScannerRecommendationsResponse,
   Service,
 } from '../../types/api';
 
 const { apiMock } = vi.hoisted(() => ({
   apiMock: {
-    getServices: vi.fn(),
-    getMessages: vi.fn(),
-    getScannerRecommendations: vi.fn(),
+    getDashboard: vi.fn(),
   },
 }));
 
@@ -54,9 +51,7 @@ vi.mock('../../hooks/useMouseGlow', () => ({
   useMouseGlow: () => vi.fn(),
 }));
 
-const servicesMock = apiMock.getServices;
-const messagesMock = apiMock.getMessages;
-const recommendationsMock = apiMock.getScannerRecommendations;
+const dashboardMock = apiMock.getDashboard;
 
 const sampleServices: Service[] = [
   {
@@ -70,17 +65,6 @@ const sampleServices: Service[] = [
     containerInfo: 'api',
     type: 'docker',
     allowedActions: ['restart'],
-  },
-];
-
-const sampleMessages: AppMessage[] = [
-  {
-    id: 'alert-1',
-    timestamp: '2026-03-15T12:00:00Z',
-    severity: 'critical',
-    sourceModule: 'scanner_alerts',
-    message: 'Scanner alert',
-    suggestedAction: 'Inspect strategy alert',
   },
 ];
 
@@ -106,38 +90,37 @@ const sampleRecommendations: ScannerRecommendation[] = [
   },
 ];
 
-const sampleResponse: ScannerRecommendationsResponse = {
-  recommendations: sampleRecommendations,
-  meta: {
-    hasMore: false,
-    nextCursor: null,
+const sampleResponse: DashboardResponse = {
+  services: sampleServices,
+  summary: {
+    running: 1,
+    total: 1,
+    errors: 0,
+    criticalAlerts: 0,
+    topOpportunity: 'bulk_essence: Deafening Essence of Greed',
   },
+  topOpportunities: sampleRecommendations,
 };
 
 describe('DashboardTab', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    servicesMock.mockResolvedValue(sampleServices);
-    messagesMock.mockResolvedValue(sampleMessages);
   });
 
   it('requests dashboard recommendations with the per-minute sort and shared response contract', async () => {
-    recommendationsMock.mockResolvedValue(sampleResponse);
+    dashboardMock.mockResolvedValue(sampleResponse);
 
     render(<DashboardTab />);
 
     await waitFor(() => {
-      expect(recommendationsMock).toHaveBeenCalledWith({
-        sort: 'expected_profit_per_minute_chaos',
-        limit: 3,
-      });
+      expect(dashboardMock).toHaveBeenCalledTimes(1);
     });
     expect(await screen.findByText('Spread supports a fast flip')).toBeInTheDocument();
     expect(screen.getByText('bulk_essence: Deafening Essence of Greed')).toBeInTheDocument();
   });
 
   it('renders the degraded dashboard state when recommendations fail to load', async () => {
-    recommendationsMock.mockRejectedValue(new Error('Recommendations offline'));
+    dashboardMock.mockRejectedValue(new Error('Recommendations offline'));
 
     render(<DashboardTab />);
 

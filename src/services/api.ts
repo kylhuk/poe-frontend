@@ -23,9 +23,13 @@ import type {
   SearchSuggestionsResponse,
   Service,
   SessionRecommendation,
+  StashItemHistoryResponse,
+  StashScanStartResponse,
+  StashScanStatus,
   ShipmentRecommendation,
   StashStatus,
   StashTab,
+  StashTabsResponse,
 } from '@/types/api';
 
 export interface IngestionRow {
@@ -475,6 +479,25 @@ export const api: ApiService = {
     return request<StashStatus>(`/api/v1/stash/status?league=${encodeURIComponent(league)}&realm=pc`);
   },
 
+  async startStashScan() {
+    const league = await primaryLeague();
+    return request<StashScanStartResponse>(`/api/v1/stash/scan?league=${encodeURIComponent(league)}&realm=pc`, {
+      method: 'POST',
+    });
+  },
+
+  async getStashScanStatus() {
+    const league = await primaryLeague();
+    return request<StashScanStatus>(`/api/v1/stash/scan/status?league=${encodeURIComponent(league)}&realm=pc`);
+  },
+
+  async getStashItemHistory(fingerprint: string) {
+    const league = await primaryLeague();
+    return request<StashItemHistoryResponse>(
+      `/api/v1/stash/items/${encodeURIComponent(fingerprint)}/history?league=${encodeURIComponent(league)}&realm=pc`
+    );
+  },
+
   async getMlAutomationStatus() {
     const league = await primaryLeague();
     const payload = await request<Record<string, unknown>>(`/api/v1/ml/leagues/${encodeURIComponent(league)}/automation/status`);
@@ -594,10 +617,10 @@ export const api: ApiService = {
 
   async getStashTabs() {
     const league = await primaryLeague();
-    const payload = await request<{ stashTabs: StashTab[] }>(
+    const payload = await request<StashTabsResponse>(
       `/api/v1/stash/tabs?league=${encodeURIComponent(league)}&realm=pc`
     );
-    return payload.stashTabs;
+    return payload;
   },
 
   async getMessages() {
