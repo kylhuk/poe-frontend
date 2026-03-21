@@ -289,6 +289,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     proxyFetch('/api/v1/auth/logout', {
       method: 'POST',
     }).finally(() => {
+      setPoeSessionId(null);
       setUser(null);
       setSessionState('disconnected');
       deleteSessionFromDb();
