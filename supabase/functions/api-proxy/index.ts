@@ -7,7 +7,7 @@ function getCorsHeaders(req: Request): Record<string, string> {
   return {
     "Access-Control-Allow-Origin": origin,
     "Access-Control-Allow-Headers":
-      "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version, x-proxy-path, x-poe-session",
+      "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version, x-proxy-path, x-poe-session, x-poe-backend-session",
     "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, PATCH, OPTIONS",
     "Access-Control-Allow-Credentials": "true",
   };
@@ -89,16 +89,18 @@ Deno.serve(async (req) => {
     forwardHeaders["Authorization"] = `Bearer ${apiKey}`;
   }
 
-  // Forward POESESSID from custom header as a cookie to the backend
+  // Build cookie string from custom headers
   const poeSession = req.headers.get("x-poe-session");
+  const poeBackendSession = req.headers.get("x-poe-backend-session");
   const existingCookie = req.headers.get("cookie") || "";
-  if (poeSession) {
-    const combined = existingCookie
-      ? `${existingCookie}; POESESSID=${poeSession}`
-      : `POESESSID=${poeSession}`;
-    forwardHeaders["Cookie"] = combined;
-  } else if (existingCookie) {
-    forwardHeaders["Cookie"] = existingCookie;
+
+  const cookieParts: string[] = [];
+  if (existingCookie) cookieParts.push(existingCookie);
+  if (poeSession) cookieParts.push(`POESESSID=${poeSession}`);
+  if (poeBackendSession) cookieParts.push(`poe_session=${poeBackendSession}`);
+
+  if (cookieParts.length > 0) {
+    forwardHeaders["Cookie"] = cookieParts.join("; ");
   }
 
   try {
@@ -113,10 +115,15 @@ Deno.serve(async (req) => {
     const responseHeaders = new Headers(corsHeaders);
     responseHeaders.set("Content-Type", backendRes.headers.get("Content-Type") || "application/json");
 
-    // Forward set-cookie headers from backend
+    // Extract poe_session cookie from backend set-cookie and expose it as a custom header
     const setCookie = backendRes.headers.get("set-cookie");
     if (setCookie) {
-      responseHeaders.set("set-cookie", setCookie);
+      const match = setCookie.match(/poe_session=([^;]+)/);
+      if (match) {
+        responseHeaders.set("x-poe-backend-session", match[1]);
+        // Expose this header to the browser
+        responseHeaders.set("Access-Control-Expose-Headers", "x-poe-backend-session");
+      }
     }
 
     const responseBody = await backendRes.arrayBuffer();
