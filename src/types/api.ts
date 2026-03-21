@@ -400,6 +400,7 @@ export interface DashboardResponse {
 // ========== ML Automation ==========
 export interface MlAutomationStatus {
   league: string;
+  mode?: string | null;
   status?: string | null;
   activeModelVersion: string | null;
   latestRun?: {
