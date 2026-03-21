@@ -1,75 +1,103 @@
 
 
-## Sync Frontend with Updated Backend + Persist POESESSID
+## Overhaul Stash Viewer for Real PoE Stash Data
 
-### Summary of Changes Found
+### What We're Building
+A faithful recreation of Path of Exile's stash tab viewer that renders real API data using official PoE CDN icons (`web.poecdn.com`), supporting all tab types with their native layout systems.
 
-**Price Check (`/price-check`)** — Backend now forwards trust metadata AND new fields:
-- `fairValueP50`, `fastSale24hPrice`, `mlPredicted`, `predictionSource`, `estimateTrust`, `estimateWarning` are all present in the price-check response now (previously missing, which motivated the dual-call strategy)
-- The dual-call approach in `PriceCheckTab.tsx` is no longer needed — a single `priceCheck` call returns everything except shadow/rollout data
+---
 
-**Shadow Comparison shape changed** — Backend now returns:
+### Data Shapes from PoE API (from HAR analysis)
+
+**Tab types identified:**
+- **Normal**: `{ items: [...] }` — 12x12 grid, items have `x, y, w, h`
+- **Quad**: `{ quadLayout: true, items: [...] }` — 24x24 grid
+- **Currency**: `{ currencyLayout: { sections: [...], layout: { "0": {x, y, w, h, scale, section, hidden?}, ... } }, items: [...] }` — absolute positioning, items matched by `x` field to slot index
+- **Fragment**: `{ fragmentLayout: { sections: [...], layout: { "0,0": {x, y, ...}, ... } }, items: [...] }` — same absolute system, keys are `"slot,0"`
+- **Other special** (delirium, essence, map, blight, ultimatum, divination, unique): same absolute layout pattern with their own `*Layout` key
+
+**Item shape:**
 ```
-{ candidateModelVersion, incumbentModelVersion, candidate: { route, price_p50, ... }, incumbent: { route, price_p50, ... } }
+icon: "https://web.poecdn.com/gen/image/..."
+stackSize, maxStackSize, name, typeLine, baseType
+frameType: 0=Normal, 1=Magic, 2=Rare, 3=Unique, 4=Gem, 5=Currency
+x, y, w, h, ilvl, identified, corrupted
+properties: [{ name, values: [[val, colorCode]], displayMode, type }]
+explicitMods: string[], implicitMods: string[]
+requirements: [{ name, values, displayMode, type }]
+sockets: [{ group, attr, sColour: "R"|"G"|"B"|"W" }]
+descrText, flavourText
 ```
-Frontend expects: `{ candidatePrediction, incumbentPrediction, deltaPercent }` — this is broken.
-
-**ML Analytics status** — `map_status_payload` now includes `route_decisions` array (frontend drops it).
-
-**Automation History** — Now includes `mode` ("v3"/"v2"), `modelMetrics`, `modelHistory`, `routeFamilies` arrays (frontend drops them all).
-
-**Rollout Controls** — Backend added `rollbackToIncumbent` as a writable field.
-
-**POESESSID persistence** — Currently stored only as a backend cookie. Needs a database table so signed-in users don't have to re-enter it.
 
 ---
 
 ### Plan
 
-#### 1. Create `user_poe_sessions` table (database migration)
-- Columns: `id uuid PK`, `user_id uuid NOT NULL UNIQUE`, `encrypted_session text NOT NULL`, `account_name text`, `updated_at timestamptz DEFAULT now()`
-- RLS: users can only read/update/insert/delete their own row (`user_id = auth.uid()`)
-- On login with POESESSID, save to this table. On page load, restore from table and send to backend.
+#### 1. Expand Types (`src/types/api.ts`)
 
-#### 2. Update types (`src/types/api.ts`)
-- Add `fairValueP50`, `fastSale24hPrice` to `PriceCheckResponse`
-- Rework `ShadowComparison` to match new nested shape: `candidate: { route, price_p50, ... }`, `incumbent: { ... }` plus model versions
-- Add `mode` to `MlAutomationHistory`
-- Add `modelMetrics`, `modelHistory`, `routeFamilies` to `MlAutomationHistory`
-- Add `routeDecisions` to `MlStatus` interface in api.ts
+Add raw PoE item and layout types:
+- `PoeItem` interface matching the full PoE API item shape (icon, stackSize, frameType, properties, mods, sockets, corrupted, etc.)
+- `SpecialLayout` type: `{ sections: string[]; layout: Record<string, { x: number; y: number; w: number; h: number; scale: number; section?: string; hidden?: boolean }> }`
+- Expand `StashTab` to include optional layout fields: `quadLayout?: boolean`, `currencyLayout?: SpecialLayout`, `fragmentLayout?: SpecialLayout`, `deliriumLayout?: SpecialLayout`, `essenceLayout?: SpecialLayout`, `mapLayout?: SpecialLayout`, etc.
+- Expand `StashTab.type` union to cover all types
+- Keep existing `StashItem` (with pricing overlay) as optional enrichment on top of `PoeItem`
 
-#### 3. Fix API normalizers (`src/services/api.ts`)
-- `normalizePriceCheckResponse`: extract `fairValueP50`, `fastSale24hPrice`, and all trust fields (now present in response)
-- `normalizeMlPredictOneResponse`: fix `shadowComparison` normalization to match new nested shape (compute `deltaPercent` from `candidate.price_p50` and `incumbent.price_p50`)
-- `normalizeMlAnalytics`: extract `route_decisions` array
-- `normalizeMlAutomationHistory`: extract `mode`, `modelMetrics`, `modelHistory`, `routeFamilies`
-- `normalizeRolloutControls` / `updateRolloutControls`: support `rollbackToIncumbent`
+#### 2. Rewrite `StashViewerTab.tsx` — Split Into Sub-Components
 
-#### 4. Simplify PriceCheckTab (`src/components/tabs/PriceCheckTab.tsx`)
-- Remove dual-call strategy — single `api.priceCheck()` call now returns trust metadata
-- Keep `api.mlPredictOne()` only for shadow/rollout data (optional secondary call)
-- Display `fairValueP50` and `fastSale24hPrice` as secondary metrics
-- Fix `ShadowComparisonCard` to render new nested shape (show route, p50, confidence for each side)
+**Rendering strategy by tab type:**
 
-#### 5. Enhance AnalyticsTab ML panels (`src/components/tabs/AnalyticsTab.tsx`)
-- Show `route_decisions` in MlPanel when non-empty
-- Show `modelMetrics` table in MlAutomationPanel (per-route model performance)
-- Show `routeFamilies` as grouped breakdown
-- Show `mode` badge (v2/v3) in automation status header
-- Add `rollbackToIncumbent` toggle to RolloutCard
+- **`NormalGrid` / `QuadGrid`**: CSS grid (12x12 or 24x24). Items placed via `gridColumn`/`gridRow` spans. Each cell renders an `<img>` of the official icon. Multi-slot items (2x2 boots, 2x4 weapons) span correctly.
 
-#### 6. Persist POESESSID (`src/services/auth.tsx`, `src/components/UserMenu.tsx`)
-- On successful `login(poeSessionId)`: save the POESESSID + accountName to `user_poe_sessions` via Supabase client
-- On auth init (when supabase user is authenticated and approved): check `user_poe_sessions` for existing session, if found, automatically call `login()` with the stored value
-- On `logout()`: delete the row from `user_poe_sessions`
-- Update `UserMenu` to show "Session saved" indicator when persisted
+- **`SpecialLayoutGrid`**: For currency/fragment/delirium/etc tabs. Uses a `position: relative` container (aspect-ratio: 1, max-width 695px). Each slot from the layout map renders as `position: absolute` with `left`/`top` in pixels (normalized to container width ~569px from the layout coords). Items matched to slots by their `x` field (slot index). Hidden slots (`hidden: true`) are skipped. Section tabs (general/influence/league) as sub-navigation within the tab.
 
-### Files to edit
-1. **Database migration** — create `user_poe_sessions` table with RLS
-2. `src/types/api.ts` — expand types
-3. `src/services/api.ts` — fix normalizers
-4. `src/components/tabs/PriceCheckTab.tsx` — simplify to single call, add new fields, fix shadow card
-5. `src/components/tabs/AnalyticsTab.tsx` — new panels for modelMetrics, routeFamilies, routeDecisions, mode badge, rollback toggle
-6. `src/services/auth.tsx` — persist/restore POESESSID from database
-7. `src/components/UserMenu.tsx` — minor: show saved session indicator
+- **`StashItemCell`**: Shared item renderer:
+  - `<img src={item.icon}>` with rarity-colored border glow based on `frameType`
+  - Stack size badge (top-right, white text on dark bg, like in-game)
+  - Price evaluation tint overlay when pricing data available (from backend enrichment)
+  - Hover triggers `ItemTooltip`
+
+- **`ItemTooltip`**: PoE-style tooltip on hover (using HoverCard):
+  - Rarity-colored header bar (grey/blue/yellow/brown based on frameType)
+  - Item name + typeLine
+  - Properties section (damage, armour, etc.)
+  - Separator line, then implicit mods (lighter color)
+  - Explicit mods (blue text)
+  - Requirements line
+  - Socket display (colored circles: R=red, G=green, B=blue, W=white, linked by lines for same group)
+  - "Unidentified" / "Corrupted" red text
+  - Price evaluation section when enriched
+
+#### 3. Update CSS (`src/index.css`)
+
+- `.poe-tooltip` — dark bg, gold border, PoE-style tooltip layout
+- `.poe-tooltip-header-normal/magic/rare/unique/gem/currency` — rarity header bars
+- `.stash-special-layout` — relative container for absolute-positioned slots
+- `.stash-special-slot` — absolute positioned item slot
+- Rarity border glow classes for item icons
+- Socket display styles (colored circles with link lines)
+- Stack size badge positioning
+
+#### 4. Update API Normalizer (`src/services/api.ts`)
+
+- `getStashTabs` normalizer: detect tab type from response keys (`quadLayout`, `currencyLayout`, `fragmentLayout`, etc.)
+- Pass through raw `PoeItem` data including `icon`, `frameType`, `sockets`, `properties`, `mods`
+- Map `frameType` number to rarity string for backward compat
+- Pass through layout objects for special tabs
+
+#### 5. Mock Data (`src/services/mockData.ts`)
+
+- Add realistic mock stash data with a few items per tab type
+- Use real `web.poecdn.com` icon URLs from the HAR data
+- Include a currency tab mock with layout slots
+- Include a quad tab mock with multi-slot items (weapons, armour)
+
+---
+
+### Files to Create/Edit
+
+1. `src/types/api.ts` — add PoeItem, SpecialLayout, expand StashTab
+2. `src/components/tabs/StashViewerTab.tsx` — full rewrite with NormalGrid, SpecialLayoutGrid, StashItemCell, ItemTooltip
+3. `src/index.css` — PoE tooltip styles, special layout CSS, socket display
+4. `src/services/api.ts` — stash normalizer updates
+5. `src/services/mockData.ts` — realistic mock data with real icon URLs
 
