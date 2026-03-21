@@ -108,6 +108,7 @@ export interface MlStatus {
   route_hotspots: MlRouteHotspot[];
   promotion_policy: MlPromotionPolicy | null;
   warmup: MlWarmup | null;
+  route_decisions: unknown[];
 }
 
 export interface MlAnalytics {
@@ -166,6 +167,7 @@ export interface RolloutControls {
   league: string;
   shadowMode: boolean;
   cutoverEnabled: boolean;
+  rollbackToIncumbent: boolean;
   candidateModelVersion: string | null;
   incumbentModelVersion: string | null;
   effectiveServingModelVersion: string | null;
@@ -329,6 +331,10 @@ function normalizeMlAnalytics(payload: unknown): MlAnalytics {
   const rawPolicy = s.promotion_policy ?? s.promotionPolicy;
   const rawWarmup = s.warmup;
 
+  const rawRouteDecisions = Array.isArray(s.route_decisions ?? s.routeDecisions)
+    ? (s.route_decisions ?? s.routeDecisions) as unknown[]
+    : [];
+
   return {
     status: {
       league: optString(s.league) ?? '',
@@ -341,6 +347,7 @@ function normalizeMlAnalytics(payload: unknown): MlAnalytics {
       latest_avg_interval_coverage: optNumber(s.latest_avg_interval_coverage ?? s.latestAvgIntervalCoverage) ?? 0,
       candidate_vs_incumbent: normalizeMlCandidateComparison(s.candidate_vs_incumbent ?? s.candidateVsIncumbent),
       route_hotspots: rawHotspots.map(normalizeMlRouteHotspot),
+      route_decisions: rawRouteDecisions,
       promotion_policy: rawPolicy && typeof rawPolicy === 'object' ? {
         mdape_ceiling: optNumber((rawPolicy as Record<string, unknown>).mdape_ceiling ?? (rawPolicy as Record<string, unknown>).mdapeCeiling),
         coverage_floor: optNumber((rawPolicy as Record<string, unknown>).coverage_floor ?? (rawPolicy as Record<string, unknown>).coverageFloor),
@@ -433,11 +440,12 @@ export async function getRolloutControls(): Promise<RolloutControls> {
   return normalizeRolloutControls(raw);
 }
 
-export async function updateRolloutControls(updates: { shadowMode?: boolean; cutoverEnabled?: boolean }): Promise<RolloutControls> {
+export async function updateRolloutControls(updates: { shadowMode?: boolean; cutoverEnabled?: boolean; rollbackToIncumbent?: boolean }): Promise<RolloutControls> {
   const league = await primaryLeague();
   const body: Record<string, unknown> = {};
   if (updates.shadowMode !== undefined) body.shadow_mode = updates.shadowMode;
   if (updates.cutoverEnabled !== undefined) body.cutover_enabled = updates.cutoverEnabled;
+  if (updates.rollbackToIncumbent !== undefined) body.rollback_to_incumbent = updates.rollbackToIncumbent;
   const raw = await request<Record<string, unknown>>(`/api/v1/ml/leagues/${encodeURIComponent(league)}/rollout`, {
     method: 'PUT',
     body: JSON.stringify(body),
@@ -451,6 +459,7 @@ function normalizeRolloutControls(raw: unknown): RolloutControls {
     league: optString(o.league) ?? '',
     shadowMode: typeof (o.shadowMode ?? o.shadow_mode) === 'boolean' ? (o.shadowMode ?? o.shadow_mode) as boolean : false,
     cutoverEnabled: typeof (o.cutoverEnabled ?? o.cutover_enabled) === 'boolean' ? (o.cutoverEnabled ?? o.cutover_enabled) as boolean : false,
+    rollbackToIncumbent: typeof (o.rollbackToIncumbent ?? o.rollback_to_incumbent) === 'boolean' ? (o.rollbackToIncumbent ?? o.rollback_to_incumbent) as boolean : false,
     candidateModelVersion: optString(o.candidateModelVersion ?? o.candidate_model_version),
     incumbentModelVersion: optString(o.incumbentModelVersion ?? o.incumbent_model_version),
     effectiveServingModelVersion: optString(o.effectiveServingModelVersion ?? o.effective_serving_model_version),
@@ -486,12 +495,33 @@ function normalizeMlPredictOneResponse(payload: unknown): MlPredictOneResponse {
   let shadowComparison: import('@/types/api').ShadowComparison | null = null;
   if (rawShadow && typeof rawShadow === 'object') {
     const sc = rawShadow as Record<string, unknown>;
+    const candidateRaw = asObject(sc.candidate);
+    const incumbentRaw = asObject(sc.incumbent);
+    const candidateSide = Object.keys(candidateRaw).length > 0 ? {
+      route: optString(candidateRaw.route),
+      price_p50: optNumber(candidateRaw.price_p50),
+      confidence_percent: optNumber(candidateRaw.confidence_percent),
+      interval_p10: optNumber(candidateRaw.interval_p10),
+      interval_p90: optNumber(candidateRaw.interval_p90),
+    } : null;
+    const incumbentSide = Object.keys(incumbentRaw).length > 0 ? {
+      route: optString(incumbentRaw.route),
+      price_p50: optNumber(incumbentRaw.price_p50),
+      confidence_percent: optNumber(incumbentRaw.confidence_percent),
+      interval_p10: optNumber(incumbentRaw.interval_p10),
+      interval_p90: optNumber(incumbentRaw.interval_p90),
+    } : null;
+    // Compute delta if both sides have p50
+    let deltaPercent = optNumber(sc.deltaPercent ?? sc.delta_percent);
+    if (deltaPercent == null && candidateSide?.price_p50 != null && incumbentSide?.price_p50 != null && incumbentSide.price_p50 !== 0) {
+      deltaPercent = ((candidateSide.price_p50 - incumbentSide.price_p50) / incumbentSide.price_p50) * 100;
+    }
     shadowComparison = {
-      candidatePrediction: optNumber(sc.candidatePrediction ?? sc.candidate_prediction),
-      incumbentPrediction: optNumber(sc.incumbentPrediction ?? sc.incumbent_prediction),
       candidateModelVersion: optString(sc.candidateModelVersion ?? sc.candidate_model_version),
       incumbentModelVersion: optString(sc.incumbentModelVersion ?? sc.incumbent_model_version),
-      deltaPercent: optNumber(sc.deltaPercent ?? sc.delta_percent),
+      candidate: candidateSide,
+      incumbent: incumbentSide,
+      deltaPercent,
     };
   }
 
@@ -554,6 +584,10 @@ function normalizePriceCheckResponse(payload: unknown): PriceCheckResponse {
     fallbackReason: typeof source.fallbackReason === 'string'
       ? source.fallbackReason
       : (typeof source.fallback_reason === 'string' ? source.fallback_reason : ''),
+    fairValueP50: optNumber(source.fairValueP50 ?? source.fair_value_p50),
+    fastSale24hPrice: optNumber(source.fastSale24hPrice ?? source.fast_sale_24h_price),
+    route: optString(source.route) ?? undefined,
+    league: optString(source.league) ?? undefined,
     ...normalizeTrustFields(source),
   };
 }
@@ -609,12 +643,13 @@ function optNumber(value: unknown): number | null {
   return typeof value === 'number' && Number.isFinite(value) ? value : null;
 }
 
-function normalizeMlAutomationStatus(payload: unknown): MlAutomationStatus {
+function normalizeMlAutomationStatus(payload: unknown): import('@/types/api').MlAutomationStatus {
   const source = asObject(payload);
-  const latest = asObject(source.latestRun);
+  const latest = asObject(source.latestRun ?? source.latest_run);
   const hasLatest = Object.keys(latest).length > 0;
   return {
     league: optString(source.league) ?? 'Mirage',
+    mode: optString(source.mode),
     status: optString(source.status),
     activeModelVersion: optString(source.activeModelVersion ?? source.active_model_version),
     latestRun: hasLatest ? {
@@ -630,17 +665,21 @@ function normalizeMlAutomationStatus(payload: unknown): MlAutomationStatus {
   };
 }
 
-function normalizeMlAutomationHistory(payload: unknown): MlAutomationHistory {
+function normalizeMlAutomationHistory(payload: unknown): import('@/types/api').MlAutomationHistory {
   const source = asObject(payload);
   const historyRows = Array.isArray(source.history) ? source.history : [];
   const summary = asObject(source.summary);
-  const qualityTrend = Array.isArray(source.qualityTrend) ? source.qualityTrend : [];
-  const trainingCadence = Array.isArray(source.trainingCadence) ? source.trainingCadence : [];
-  const routeMetrics = Array.isArray(source.routeMetrics) ? source.routeMetrics : [];
-  const datasetCoverage = asObject(source.datasetCoverage);
+  const qualityTrend = Array.isArray(source.qualityTrend ?? source.quality_trend) ? (source.qualityTrend ?? source.quality_trend) as unknown[] : [];
+  const trainingCadence = Array.isArray(source.trainingCadence ?? source.training_cadence) ? (source.trainingCadence ?? source.training_cadence) as unknown[] : [];
+  const routeMetrics = Array.isArray(source.routeMetrics ?? source.route_metrics) ? (source.routeMetrics ?? source.route_metrics) as unknown[] : [];
+  const datasetCoverage = asObject(source.datasetCoverage ?? source.dataset_coverage);
   const promotions = Array.isArray(source.promotions) ? source.promotions : [];
+  const rawModelMetrics = Array.isArray(source.modelMetrics ?? source.model_metrics) ? (source.modelMetrics ?? source.model_metrics) as unknown[] : [];
+  const rawModelHistory = Array.isArray(source.modelHistory ?? source.model_history) ? (source.modelHistory ?? source.model_history) as unknown[] : [];
+  const rawRouteFamilies = Array.isArray(source.routeFamilies ?? source.route_families) ? (source.routeFamilies ?? source.route_families) as unknown[] : [];
   return {
     league: optString(source.league) ?? 'Mirage',
+    mode: optString(source.mode),
     history: historyRows.map((entry) => {
       const row = asObject(entry);
       return {
@@ -720,6 +759,34 @@ function normalizeMlAutomationHistory(payload: unknown): MlAutomationHistory {
         promotedAt: optString(row.promotedAt ?? row.promoted_at),
       };
     }),
+    modelMetrics: rawModelMetrics.length > 0 ? rawModelMetrics.map((entry) => {
+      const row = asObject(entry);
+      return {
+        route: optString(row.route),
+        modelVersion: optString(row.modelVersion ?? row.model_version),
+        sampleCount: optNumber(row.sampleCount ?? row.sample_count),
+        avgMdape: optNumber(row.avgMdape ?? row.avg_mdape),
+        avgIntervalCoverage: optNumber(row.avgIntervalCoverage ?? row.avg_interval_coverage),
+        recordedAt: optString(row.recordedAt ?? row.recorded_at),
+      };
+    }) : undefined,
+    modelHistory: rawModelHistory.length > 0 ? rawModelHistory.map((entry) => {
+      const row = asObject(entry);
+      return {
+        modelVersion: optString(row.modelVersion ?? row.model_version),
+        promotedAt: optString(row.promotedAt ?? row.promoted_at),
+        retiredAt: optString(row.retiredAt ?? row.retired_at),
+        runsCount: optNumber(row.runsCount ?? row.runs_count),
+      };
+    }) : undefined,
+    routeFamilies: rawRouteFamilies.length > 0 ? rawRouteFamilies.map((entry) => {
+      const row = asObject(entry);
+      return {
+        family: optString(row.family),
+        routes: Array.isArray(row.routes) ? (row.routes as string[]) : [],
+        totalSamples: optNumber(row.totalSamples ?? row.total_samples),
+      };
+    }) : undefined,
   };
 }
 

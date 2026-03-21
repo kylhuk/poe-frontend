@@ -10,7 +10,7 @@ import { API_BASE } from '@/services/config';
 import { toast } from 'sonner';
 
 const UserMenu = () => {
-  const { user, login, logout, sessionState, isLoading, supabaseUser, signOut, isAuthenticated } = useAuth();
+  const { user, login, logout, sessionState, isLoading, supabaseUser, signOut, isAuthenticated, sessionPersisted } = useAuth();
   const [value, setValue] = useState('');
   const [showValue, setShowValue] = useState(false);
   const [open, setOpen] = useState(false);
@@ -73,6 +73,7 @@ const UserMenu = () => {
       {connected && (
         <span className="text-xs font-mono text-foreground" data-testid="auth-connected">
           {user.accountName}
+          {sessionPersisted && <span className="text-[10px] text-muted-foreground ml-1" title="Session saved to your account">💾</span>}
         </span>
       )}
       <Popover open={open} onOpenChange={setOpen}>

@@ -493,6 +493,38 @@ function MlPanel() {
         <p className="text-xs text-muted-foreground text-center py-2">No route hotspots</p>
       )}
 
+      {/* Route Decisions */}
+      {(s as MlStatus & { route_decisions: unknown[] }).route_decisions?.length > 0 && (
+        <Card className="card-game">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-sans">Route Decisions</CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="text-xs">Route</TableHead>
+                  <TableHead className="text-xs">Decision</TableHead>
+                  <TableHead className="text-xs">Reason</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {((s as MlStatus & { route_decisions: unknown[] }).route_decisions).map((rd: unknown, i: number) => {
+                  const d = rd as Record<string, unknown>;
+                  return (
+                    <TableRow key={i}>
+                      <TableCell className="text-xs font-mono">{String(d.route ?? d.route_key ?? '—')}</TableCell>
+                      <TableCell className="text-xs"><Badge className={statusColor(String(d.decision ?? d.action ?? ''))}>{humanize(String(d.decision ?? d.action ?? 'unknown'))}</Badge></TableCell>
+                      <TableCell className="text-xs text-muted-foreground">{String(d.reason ?? '—')}</TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
+
       {/* ML Rollout Controls */}
       <RolloutCard />
 
@@ -523,6 +555,10 @@ function MlAutomationPanel({ status, history, error }: { status: MlAutomationSta
   const datasetCoverage = history?.datasetCoverage ?? null;
   const promotions = history?.promotions ?? [];
   const runs = history?.history ?? [];
+  const modelMetrics = history?.modelMetrics ?? [];
+  const modelHistoryEntries = history?.modelHistory ?? [];
+  const routeFamilies = history?.routeFamilies ?? [];
+  const mode = history?.mode ?? status?.mode;
   const mdapeTrendData = qualityTrend
     .filter((point) => point.avgMdape != null)
     .map((point, index) => ({
@@ -548,7 +584,14 @@ function MlAutomationPanel({ status, history, error }: { status: MlAutomationSta
       {status && (
         <Card className="card-game">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-sans">Automation Status</CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-sm font-sans">Automation Status</CardTitle>
+              {mode && (
+                <Badge variant="outline" className="text-[10px] font-mono px-1.5 py-0 h-5">
+                  {mode}
+                </Badge>
+              )}
+            </div>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-6 gap-y-3 text-xs">
@@ -713,6 +756,94 @@ function MlAutomationPanel({ status, history, error }: { status: MlAutomationSta
             </CardContent>
           </Card>
         </>
+      )}
+
+      {/* Model Metrics (per-route model performance) */}
+      {modelMetrics.length > 0 && (
+        <Card className="card-game">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-sans">Model Metrics</CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="text-xs">Route</TableHead>
+                  <TableHead className="text-xs">Model</TableHead>
+                  <TableHead className="text-xs text-right">Samples</TableHead>
+                  <TableHead className="text-xs text-right">MDAPE</TableHead>
+                  <TableHead className="text-xs text-right">Coverage</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {modelMetrics.map((m, i) => (
+                  <TableRow key={i}>
+                    <TableCell className="text-xs font-mono">{m.route ?? '—'}</TableCell>
+                    <TableCell className="text-xs font-mono">{m.modelVersion ?? '—'}</TableCell>
+                    <TableCell className="text-xs font-mono text-right">{m.sampleCount != null ? formatCompact(m.sampleCount) : '—'}</TableCell>
+                    <TableCell className="text-xs font-mono text-right">{formatPct(m.avgMdape)}</TableCell>
+                    <TableCell className="text-xs font-mono text-right">{formatPct(m.avgIntervalCoverage)}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Model History */}
+      {modelHistoryEntries.length > 0 && (
+        <Card className="card-game">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-sans">Model Version History</CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="text-xs">Model</TableHead>
+                  <TableHead className="text-xs">Promoted</TableHead>
+                  <TableHead className="text-xs">Retired</TableHead>
+                  <TableHead className="text-xs text-right">Runs</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {modelHistoryEntries.map((m, i) => (
+                  <TableRow key={i}>
+                    <TableCell className="text-xs font-mono">{m.modelVersion ?? '—'}</TableCell>
+                    <TableCell className="text-xs text-muted-foreground">{m.promotedAt ? formatDateTimeShort(m.promotedAt) : '—'}</TableCell>
+                    <TableCell className="text-xs text-muted-foreground">{m.retiredAt ? formatDateTimeShort(m.retiredAt) : '—'}</TableCell>
+                    <TableCell className="text-xs font-mono text-right">{m.runsCount ?? '—'}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Route Families */}
+      {routeFamilies.length > 0 && (
+        <Card className="card-game">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-sans">Route Families</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {routeFamilies.map((f, i) => (
+              <div key={i} className="text-xs">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="font-medium text-foreground">{f.family ?? 'Unknown'}</span>
+                  {f.totalSamples != null && <span className="text-muted-foreground font-mono">{formatCompact(f.totalSamples)} samples</span>}
+                </div>
+                <div className="flex flex-wrap gap-1">
+                  {f.routes.map((r) => (
+                    <Badge key={r} variant="outline" className="text-[10px] font-mono px-1.5 py-0 h-5">{r}</Badge>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
       )}
 
       {runs.length > 0 && (
@@ -1040,7 +1171,7 @@ function RolloutCard() {
   }, []);
   useEffect(() => { load(); }, [load]);
 
-  const toggle = useCallback(async (field: 'shadowMode' | 'cutoverEnabled', value: boolean) => {
+  const toggle = useCallback(async (field: 'shadowMode' | 'cutoverEnabled' | 'rollbackToIncumbent', value: boolean) => {
     setUpdating(true);
     try {
       const updated = await updateRolloutControls({ [field]: value });
@@ -1083,7 +1214,7 @@ function RolloutCard() {
           </div>
         </div>
 
-        <div className="flex items-center gap-6">
+        <div className="flex items-center gap-6 flex-wrap">
           <div className="flex items-center gap-2">
             <Switch
               id="shadow-mode"
@@ -1101,6 +1232,15 @@ function RolloutCard() {
               onCheckedChange={(v) => toggle('cutoverEnabled', v)}
             />
             <Label htmlFor="cutover-enabled" className="text-xs">Cutover</Label>
+          </div>
+          <div className="flex items-center gap-2">
+            <Switch
+              id="rollback-to-incumbent"
+              checked={data.rollbackToIncumbent}
+              disabled={updating}
+              onCheckedChange={(v) => toggle('rollbackToIncumbent', v)}
+            />
+            <Label htmlFor="rollback-to-incumbent" className="text-xs text-destructive">Rollback</Label>
           </div>
         </div>
 

@@ -153,6 +153,10 @@ export interface PriceCheckResponse {
   predictionSource?: string;
   estimateTrust?: string;
   estimateWarning?: string | null;
+  fairValueP50?: number | null;
+  fastSale24hPrice?: number | null;
+  route?: string;
+  league?: string;
 }
 
 // ========== ML Predict One ==========
@@ -160,11 +164,19 @@ export interface MlPredictOneRequest {
   itemText: string;
 }
 
+export interface ShadowComparisonSide {
+  route: string | null;
+  price_p50: number | null;
+  confidence_percent: number | null;
+  interval_p10: number | null;
+  interval_p90: number | null;
+}
+
 export interface ShadowComparison {
-  candidatePrediction: number | null;
-  incumbentPrediction: number | null;
   candidateModelVersion: string | null;
   incumbentModelVersion: string | null;
+  candidate: ShadowComparisonSide | null;
+  incumbent: ShadowComparisonSide | null;
   deltaPercent: number | null;
 }
 
@@ -388,6 +400,7 @@ export interface DashboardResponse {
 // ========== ML Automation ==========
 export interface MlAutomationStatus {
   league: string;
+  mode?: string | null;
   status?: string | null;
   activeModelVersion: string | null;
   latestRun?: {
@@ -423,8 +436,31 @@ export interface MlAutomationHistoryTrendPoint {
   activeModelVersion: string | null;
 }
 
+export interface MlModelMetric {
+  route: string | null;
+  modelVersion: string | null;
+  sampleCount: number | null;
+  avgMdape: number | null;
+  avgIntervalCoverage: number | null;
+  recordedAt: string | null;
+}
+
+export interface MlModelHistoryEntry {
+  modelVersion: string | null;
+  promotedAt: string | null;
+  retiredAt: string | null;
+  runsCount: number | null;
+}
+
+export interface MlRouteFamily {
+  family: string | null;
+  routes: string[];
+  totalSamples: number | null;
+}
+
 export interface MlAutomationHistory {
   league: string;
+  mode?: string | null;
   history: MlAutomationHistoryRun[];
   summary: {
     activeModelVersion: string | null;
@@ -467,6 +503,9 @@ export interface MlAutomationHistory {
     modelVersion: string | null;
     promotedAt: string | null;
   }>;
+  modelMetrics?: MlModelMetric[];
+  modelHistory?: MlModelHistoryEntry[];
+  routeFamilies?: MlRouteFamily[];
 }
 
 // ========== API Service Interface ==========
