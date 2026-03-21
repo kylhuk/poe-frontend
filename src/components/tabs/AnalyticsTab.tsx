@@ -555,6 +555,10 @@ function MlAutomationPanel({ status, history, error }: { status: MlAutomationSta
   const datasetCoverage = history?.datasetCoverage ?? null;
   const promotions = history?.promotions ?? [];
   const runs = history?.history ?? [];
+  const modelMetrics = history?.modelMetrics ?? [];
+  const modelHistoryEntries = history?.modelHistory ?? [];
+  const routeFamilies = history?.routeFamilies ?? [];
+  const mode = history?.mode ?? status?.mode;
   const mdapeTrendData = qualityTrend
     .filter((point) => point.avgMdape != null)
     .map((point, index) => ({
@@ -580,7 +584,14 @@ function MlAutomationPanel({ status, history, error }: { status: MlAutomationSta
       {status && (
         <Card className="card-game">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-sans">Automation Status</CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-sm font-sans">Automation Status</CardTitle>
+              {mode && (
+                <Badge variant="outline" className="text-[10px] font-mono px-1.5 py-0 h-5">
+                  {mode}
+                </Badge>
+              )}
+            </div>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-6 gap-y-3 text-xs">
