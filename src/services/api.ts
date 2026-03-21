@@ -331,6 +331,10 @@ function normalizeMlAnalytics(payload: unknown): MlAnalytics {
   const rawPolicy = s.promotion_policy ?? s.promotionPolicy;
   const rawWarmup = s.warmup;
 
+  const rawRouteDecisions = Array.isArray(s.route_decisions ?? s.routeDecisions)
+    ? (s.route_decisions ?? s.routeDecisions) as unknown[]
+    : [];
+
   return {
     status: {
       league: optString(s.league) ?? '',
@@ -343,6 +347,7 @@ function normalizeMlAnalytics(payload: unknown): MlAnalytics {
       latest_avg_interval_coverage: optNumber(s.latest_avg_interval_coverage ?? s.latestAvgIntervalCoverage) ?? 0,
       candidate_vs_incumbent: normalizeMlCandidateComparison(s.candidate_vs_incumbent ?? s.candidateVsIncumbent),
       route_hotspots: rawHotspots.map(normalizeMlRouteHotspot),
+      route_decisions: rawRouteDecisions,
       promotion_policy: rawPolicy && typeof rawPolicy === 'object' ? {
         mdape_ceiling: optNumber((rawPolicy as Record<string, unknown>).mdape_ceiling ?? (rawPolicy as Record<string, unknown>).mdapeCeiling),
         coverage_floor: optNumber((rawPolicy as Record<string, unknown>).coverage_floor ?? (rawPolicy as Record<string, unknown>).coverageFloor),
