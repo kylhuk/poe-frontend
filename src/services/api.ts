@@ -643,12 +643,13 @@ function optNumber(value: unknown): number | null {
   return typeof value === 'number' && Number.isFinite(value) ? value : null;
 }
 
-function normalizeMlAutomationStatus(payload: unknown): MlAutomationStatus {
+function normalizeMlAutomationStatus(payload: unknown): import('@/types/api').MlAutomationStatus {
   const source = asObject(payload);
-  const latest = asObject(source.latestRun);
+  const latest = asObject(source.latestRun ?? source.latest_run);
   const hasLatest = Object.keys(latest).length > 0;
   return {
     league: optString(source.league) ?? 'Mirage',
+    mode: optString(source.mode),
     status: optString(source.status),
     activeModelVersion: optString(source.activeModelVersion ?? source.active_model_version),
     latestRun: hasLatest ? {
