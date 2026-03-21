@@ -50,6 +50,7 @@ interface AuthContextValue {
   refreshSession: () => Promise<void | SessionPayload>;
   sessionState: 'connected' | 'disconnected' | 'session_expired';
   isLoading: boolean;
+  sessionPersisted: boolean;
 }
 
 const AuthContext = createContext<AuthContextValue>({
