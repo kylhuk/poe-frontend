@@ -1,43 +1,58 @@
 
 
-## Adjust ML Price Check Tab
+## Update ML Price Check and Analytics to Match Current Backend
 
-### What changes
+### Findings
 
-The backend now returns additional fields on both endpoints that the frontend drops: `mlPredicted`, `predictionSource`, `estimateTrust`, `estimateWarning`, `league`, `route`. The `mlPredictOne` call still uses the legacy request format. The `priceCheck` call does no normalization. The UI doesn't distinguish ML vs static-fallback results.
+After reviewing the latest backend code pushed to GitHub, here is what actually differs from what the frontend handles:
 
-### 1. Update types (`src/types/api.ts`)
+**Price Check (`/api/v1/ops/leagues/{league}/price-check`)**:
+- The backend `price_check_payload` does NOT forward `mlPredicted`, `predictionSource`, `estimateTrust`, `estimateWarning` from the ML prediction — only `fallbackReason` is passed. The frontend normalizer handles these fields but they arrive as `undefined`.
+- `fairValueP50` and `fastSale24hPrice` are NOT present in the backend output.
+- The trust fields (`mlPredicted`, etc.) only exist on the `/predict-one` endpoint's `normalize_predict_one_payload`.
 
-Add new fields to both response types:
+**ML Analytics (`/api/v1/ops/analytics/ml`)**:
+- `map_status_payload` now includes `warmup` (already handled by frontend) and `promotion_policy` (already handled).
+- `latest_avg_mdape` and `latest_avg_interval_coverage` are present (already handled).
+- No `route_decisions` field exists — only `route_hotspots` (already handled).
 
-- `MlPredictOneResponse`: add `league`, `route`, `mlPredicted`, `predictionSource`, `estimateTrust`, `estimateWarning`
-- `PriceCheckResponse`: add `mlPredicted`, `predictionSource`, `estimateTrust`, `estimateWarning`
-- Change `MlPredictOneRequest` to use `itemText` instead of `clipboard`
+**Automation History (`/automation/history`)**:
+- Backend output matches current frontend normalizer exactly. No new arrays (`modelMetrics`, `modelHistory`, `routeFamilies`).
 
-### 2. Fix API layer (`src/services/api.ts`)
+**Predict-one (`/predict-one`)**:
+- Returns `rollout` and `servingModelVersion` and optionally `shadowComparison` for the Mirage league — frontend does NOT display these.
 
-- **`mlPredictOne()`**: Switch from legacy `input_format`/`payload`/`output_mode` body to `{ itemText: text }`. Update normalizer to extract the new fields (`mlPredicted`, `predictionSource`, `estimateTrust`, `estimateWarning`, `league`, `route`) handling both snake_case and camelCase.
-- **`priceCheck()`**: Add normalization (currently raw cast). Extract same new fields plus `comparables`. Send `{ itemText: text.trim() }`.
-- **Error handling**: Parse error envelope `{ error: { code, message } }` in `request()` to surface `backend_unavailable` and `league_not_allowed` as specific error messages.
+### Plan
 
-### 3. Rework PriceCheckTab UI (`src/components/tabs/PriceCheckTab.tsx`)
+Given the actual backend state, the meaningful changes are:
 
-- Call `priceCheck` (single call gives prediction + comparables).
-- **Trust indicators**:
-  - When `mlPredicted === false` or `estimateTrust === 'low'`: render an amber warning banner with `estimateWarning` text, dim the prediction value styling.
-  - When `priceRecommendationEligible === false`: show a muted "Not eligible for price recommendation" notice.
-  - When `fallbackReason` is non-empty: show as a warning badge (already partially done, make more prominent).
-- **New data display**:
-  - Show `predictionSource` and `route` as small metadata chips below the prediction value.
-  - Show `league` in the header area.
-- **Error states**:
-  - `backend_unavailable`: "Model not available — try again later" with a distinct icon.
-  - `league_not_allowed`: "This league is not supported for price checking."
-  - Generic errors: keep current behavior.
-- Add a helper `isLowTrustEstimate(result)` that checks `mlPredicted === false || estimateTrust === 'low' || fallbackReason non-empty`.
+#### 1. Price Check: use dual-call strategy to get trust fields
+Since `price_check_payload` doesn't include trust metadata but `predict-one` does, make PriceCheckTab call **both** endpoints: `priceCheck` for comparables + `mlPredictOne` for trust fields, then merge results. This ensures `mlPredicted`, `predictionSource`, `estimateTrust`, `estimateWarning`, `route`, and `league` are available.
 
-### Files
-1. `src/types/api.ts` — expand `PriceCheckResponse`, `MlPredictOneResponse`, `MlPredictOneRequest`
-2. `src/services/api.ts` — fix request body format, add normalization for new fields, improve error parsing
-3. `src/components/tabs/PriceCheckTab.tsx` — trust indicators, new field display, error states
+**File**: `src/components/tabs/PriceCheckTab.tsx`
+- Call both `api.priceCheck()` and `api.mlPredictOne()` in parallel
+- Merge trust fields from predict-one into the price-check result for display
+- Keep existing trust indicator UI (amber banners, dimmed values, etc.)
+
+#### 2. Display rollout/shadow data for predict-one
+The predict-one endpoint returns `rollout` and `shadowComparison` for Mirage league. Surface this in the Price Check result card.
+
+**File**: `src/types/api.ts`
+- Add `rollout` and `shadowComparison` optional fields to `MlPredictOneResponse`
+- Add `servingModelVersion` field
+
+**File**: `src/services/api.ts`
+- Extend `normalizeMlPredictOneResponse` to extract `rollout`, `servingModelVersion`, `shadowComparison`
+
+**File**: `src/components/tabs/PriceCheckTab.tsx`
+- When `shadowComparison` is present, show a small comparison card (candidate vs incumbent prediction)
+- Show `servingModelVersion` as a metadata chip
+
+#### 3. No changes needed for Analytics ML tab
+The backend output matches the existing frontend implementation. All fields are already normalized and displayed.
+
+### Files to edit
+1. `src/types/api.ts` — add rollout/shadow types to `MlPredictOneResponse`
+2. `src/services/api.ts` — extend predict-one normalizer for rollout/shadow fields
+3. `src/components/tabs/PriceCheckTab.tsx` — dual-call strategy, merge trust fields, show rollout/shadow data
 
