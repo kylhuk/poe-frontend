@@ -68,6 +68,7 @@ const AuthContext = createContext<AuthContextValue>({
   refreshSession: async () => {},
   sessionState: 'disconnected',
   isLoading: true,
+  sessionPersisted: false,
 });
 
 export const useAuth = () => useContext(AuthContext);
