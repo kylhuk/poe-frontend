@@ -1,5 +1,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
+import { rewriteProxySetCookie } from "./cookies.ts";
+
 const API_BASE = "https://api.poe.lama-lan.ch";
 
 function getCorsHeaders(req: Request): Record<string, string> {
@@ -102,7 +104,7 @@ Deno.serve(async (req) => {
     // Forward set-cookie headers from backend
     const setCookie = backendRes.headers.get("set-cookie");
     if (setCookie) {
-      responseHeaders.set("set-cookie", setCookie);
+      responseHeaders.set("set-cookie", rewriteProxySetCookie(setCookie));
     }
 
     const responseBody = await backendRes.arrayBuffer();
