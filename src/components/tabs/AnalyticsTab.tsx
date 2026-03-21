@@ -1040,7 +1040,7 @@ function RolloutCard() {
   }, []);
   useEffect(() => { load(); }, [load]);
 
-  const toggle = useCallback(async (field: 'shadowMode' | 'cutoverEnabled', value: boolean) => {
+  const toggle = useCallback(async (field: 'shadowMode' | 'cutoverEnabled' | 'rollbackToIncumbent', value: boolean) => {
     setUpdating(true);
     try {
       const updated = await updateRolloutControls({ [field]: value });
