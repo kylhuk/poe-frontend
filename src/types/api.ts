@@ -164,11 +164,19 @@ export interface MlPredictOneRequest {
   itemText: string;
 }
 
+export interface ShadowComparisonSide {
+  route: string | null;
+  price_p50: number | null;
+  confidence_percent: number | null;
+  interval_p10: number | null;
+  interval_p90: number | null;
+}
+
 export interface ShadowComparison {
-  candidatePrediction: number | null;
-  incumbentPrediction: number | null;
   candidateModelVersion: string | null;
   incumbentModelVersion: string | null;
+  candidate: ShadowComparisonSide | null;
+  incumbent: ShadowComparisonSide | null;
   deltaPercent: number | null;
 }
 
