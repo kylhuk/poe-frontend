@@ -303,6 +303,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       method: 'POST',
     }).finally(() => {
       setPoeSessionId(null);
+      setPoeBackendSession(null);
       setUser(null);
       setSessionState('disconnected');
       deleteSessionFromDb();
