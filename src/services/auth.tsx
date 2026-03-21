@@ -256,7 +256,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [refreshSession]);
 
   const login = useCallback(async (poeSessionId: string): Promise<boolean> => {
+    // Store in memory so proxyFetch attaches it on every request
+    setPoeSessionId(poeSessionId);
     try {
+      // POST to establish backend session
       const response = await proxyFetch('/api/v1/auth/session', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -267,14 +270,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     } catch (err) {
       logApiError({ path: '/api/v1/auth/session', errorCode: 'network_error', message: err instanceof Error ? err.message : 'Network error' });
+      setPoeSessionId(null);
       return false;
     }
+    // Verify session — the x-poe-session header will be sent automatically
     const result = await refreshSession();
     if (result.status === 'connected' && result.accountName) {
-      // Persist to database for signed-in users
       await saveSessionToDb(poeSessionId, result.accountName);
       return true;
     }
+    setPoeSessionId(null);
     return false;
   }, [refreshSession, saveSessionToDb]);
 
