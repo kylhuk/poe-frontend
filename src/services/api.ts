@@ -759,6 +759,34 @@ function normalizeMlAutomationHistory(payload: unknown): import('@/types/api').M
         promotedAt: optString(row.promotedAt ?? row.promoted_at),
       };
     }),
+    modelMetrics: rawModelMetrics.length > 0 ? rawModelMetrics.map((entry) => {
+      const row = asObject(entry);
+      return {
+        route: optString(row.route),
+        modelVersion: optString(row.modelVersion ?? row.model_version),
+        sampleCount: optNumber(row.sampleCount ?? row.sample_count),
+        avgMdape: optNumber(row.avgMdape ?? row.avg_mdape),
+        avgIntervalCoverage: optNumber(row.avgIntervalCoverage ?? row.avg_interval_coverage),
+        recordedAt: optString(row.recordedAt ?? row.recorded_at),
+      };
+    }) : undefined,
+    modelHistory: rawModelHistory.length > 0 ? rawModelHistory.map((entry) => {
+      const row = asObject(entry);
+      return {
+        modelVersion: optString(row.modelVersion ?? row.model_version),
+        promotedAt: optString(row.promotedAt ?? row.promoted_at),
+        retiredAt: optString(row.retiredAt ?? row.retired_at),
+        runsCount: optNumber(row.runsCount ?? row.runs_count),
+      };
+    }) : undefined,
+    routeFamilies: rawRouteFamilies.length > 0 ? rawRouteFamilies.map((entry) => {
+      const row = asObject(entry);
+      return {
+        family: optString(row.family),
+        routes: Array.isArray(row.routes) ? (row.routes as string[]) : [],
+        totalSamples: optNumber(row.totalSamples ?? row.total_samples),
+      };
+    }) : undefined,
   };
 }
 

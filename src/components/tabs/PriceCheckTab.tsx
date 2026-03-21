@@ -11,13 +11,11 @@ import { Brain, AlertTriangle, ServerCrash, ShieldAlert, Info, GitCompare } from
 import { RenderState } from '@/components/shared/RenderState';
 import { useMouseGlow } from '@/hooks/useMouseGlow';
 
-/** Merged result combining price-check comparables with predict-one trust metadata */
+/** Merged result combining price-check data with predict-one shadow/rollout metadata */
 interface MergedPriceResult extends PriceCheckResponse {
   servingModelVersion?: string | null;
   rollout?: string | null;
   shadowComparison?: ShadowComparison | null;
-  route?: string;
-  league?: string;
 }
 
 function isLowTrustEstimate(r: MergedPriceResult): boolean {
@@ -31,17 +29,15 @@ function mergePriceAndTrust(
   if (!trust) return price;
   return {
     ...price,
-    // Trust fields from predict-one override the (usually undefined) price-check ones
-    mlPredicted: trust.mlPredicted ?? price.mlPredicted,
-    predictionSource: trust.predictionSource ?? price.predictionSource,
-    estimateTrust: trust.estimateTrust ?? price.estimateTrust,
-    estimateWarning: trust.estimateWarning ?? price.estimateWarning,
-    // New predict-one-only fields
+    // Trust fields: prefer price-check (now populated), fallback to predict-one
+    mlPredicted: price.mlPredicted ?? trust.mlPredicted,
+    predictionSource: price.predictionSource ?? trust.predictionSource,
+    estimateTrust: price.estimateTrust ?? trust.estimateTrust,
+    estimateWarning: price.estimateWarning ?? trust.estimateWarning,
+    // Predict-one-only fields
     servingModelVersion: trust.servingModelVersion,
     rollout: trust.rollout,
     shadowComparison: trust.shadowComparison,
-    route: trust.route,
-    league: trust.league,
   };
 }
 
@@ -64,16 +60,18 @@ const PriceCheckTab = forwardRef<HTMLDivElement, Record<string, never>>(function
     setError(null);
     setErrorCode(null);
     try {
-      // Dual-call: price-check for comparables, predict-one for trust + shadow metadata
-      const [priceData, trustData] = await Promise.allSettled([
-        api.priceCheck({ itemText: text }),
-        api.mlPredictOne({ itemText: text }),
-      ]);
+      // Single price-check call now returns trust metadata; predict-one only for shadow/rollout
+      const priceData = await api.priceCheck({ itemText: text });
 
-      if (priceData.status === 'rejected') throw priceData.reason;
+      // Optional secondary call for shadow/rollout data — don't block on failure
+      let trust: MlPredictOneResponse | null = null;
+      try {
+        trust = await api.mlPredictOne({ itemText: text });
+      } catch {
+        // Shadow data is optional
+      }
 
-      const trust = trustData.status === 'fulfilled' ? trustData.value : null;
-      setResult(mergePriceAndTrust(priceData.value, trust));
+      setResult(mergePriceAndTrust(priceData, trust));
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Price prediction failed';
       const code = msg.split(':')[0] ?? '';
@@ -232,6 +230,23 @@ function PriceResultCard({
               Sale Probability: {result.saleProbabilityPercent}%
             </p>
           )}
+
+          {/* Secondary metrics: fair value & fast sale */}
+          {(result.fairValueP50 != null || result.fastSale24hPrice != null) && (
+            <div className="flex items-center justify-center gap-6 mt-2">
+              {result.fairValueP50 != null && (
+                <span className="text-xs text-muted-foreground">
+                  Fair Value: <span className="font-mono text-foreground">{result.fairValueP50} {result.currency}</span>
+                </span>
+              )}
+              {result.fastSale24hPrice != null && (
+                <span className="text-xs text-muted-foreground">
+                  Fast Sale 24h: <span className="font-mono text-foreground">{result.fastSale24hPrice} {result.currency}</span>
+                </span>
+              )}
+            </div>
+          )}
+
           {(result.route || result.league) && (
             <p className="text-xs text-muted-foreground mt-1">
               {result.route && <span>Route: {result.route}</span>}
@@ -252,7 +267,7 @@ function PriceResultCard({
 }
 
 function ShadowComparisonCard({ shadow }: { shadow: ShadowComparison }) {
-  const hasBoth = shadow.candidatePrediction != null && shadow.incumbentPrediction != null;
+  const hasBoth = shadow.candidate?.price_p50 != null && shadow.incumbent?.price_p50 != null;
   if (!hasBoth) return null;
 
   const delta = shadow.deltaPercent;
@@ -267,16 +282,28 @@ function ShadowComparisonCard({ shadow }: { shadow: ShadowComparison }) {
       <div className="grid grid-cols-2 gap-4 text-center">
         <div>
           <p className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">Candidate</p>
-          <p className="text-sm font-mono font-semibold text-foreground">{shadow.candidatePrediction}</p>
+          <p className="text-sm font-mono font-semibold text-foreground">{shadow.candidate!.price_p50}</p>
+          {shadow.candidate!.route && (
+            <p className="text-[10px] text-muted-foreground font-mono">{shadow.candidate!.route}</p>
+          )}
           {shadow.candidateModelVersion && (
             <p className="text-[10px] text-muted-foreground font-mono">{shadow.candidateModelVersion}</p>
+          )}
+          {shadow.candidate!.confidence_percent != null && (
+            <p className="text-[10px] text-muted-foreground">{shadow.candidate!.confidence_percent}% conf</p>
           )}
         </div>
         <div>
           <p className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">Incumbent</p>
-          <p className="text-sm font-mono font-semibold text-foreground">{shadow.incumbentPrediction}</p>
+          <p className="text-sm font-mono font-semibold text-foreground">{shadow.incumbent!.price_p50}</p>
+          {shadow.incumbent!.route && (
+            <p className="text-[10px] text-muted-foreground font-mono">{shadow.incumbent!.route}</p>
+          )}
           {shadow.incumbentModelVersion && (
             <p className="text-[10px] text-muted-foreground font-mono">{shadow.incumbentModelVersion}</p>
+          )}
+          {shadow.incumbent!.confidence_percent != null && (
+            <p className="text-[10px] text-muted-foreground">{shadow.incumbent!.confidence_percent}% conf</p>
           )}
         </div>
       </div>

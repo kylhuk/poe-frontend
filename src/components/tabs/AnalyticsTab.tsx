@@ -1083,7 +1083,7 @@ function RolloutCard() {
           </div>
         </div>
 
-        <div className="flex items-center gap-6">
+        <div className="flex items-center gap-6 flex-wrap">
           <div className="flex items-center gap-2">
             <Switch
               id="shadow-mode"
@@ -1101,6 +1101,15 @@ function RolloutCard() {
               onCheckedChange={(v) => toggle('cutoverEnabled', v)}
             />
             <Label htmlFor="cutover-enabled" className="text-xs">Cutover</Label>
+          </div>
+          <div className="flex items-center gap-2">
+            <Switch
+              id="rollback-to-incumbent"
+              checked={data.rollbackToIncumbent}
+              disabled={updating}
+              onCheckedChange={(v) => toggle('rollbackToIncumbent', v)}
+            />
+            <Label htmlFor="rollback-to-incumbent" className="text-xs text-destructive">Rollback</Label>
           </div>
         </div>
 
