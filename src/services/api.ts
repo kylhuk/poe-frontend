@@ -108,6 +108,7 @@ export interface MlStatus {
   route_hotspots: MlRouteHotspot[];
   promotion_policy: MlPromotionPolicy | null;
   warmup: MlWarmup | null;
+  route_decisions: unknown[];
 }
 
 export interface MlAnalytics {
