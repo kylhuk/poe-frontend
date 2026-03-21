@@ -493,6 +493,38 @@ function MlPanel() {
         <p className="text-xs text-muted-foreground text-center py-2">No route hotspots</p>
       )}
 
+      {/* Route Decisions */}
+      {(s as MlStatus & { route_decisions: unknown[] }).route_decisions?.length > 0 && (
+        <Card className="card-game">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-sans">Route Decisions</CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="text-xs">Route</TableHead>
+                  <TableHead className="text-xs">Decision</TableHead>
+                  <TableHead className="text-xs">Reason</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {((s as MlStatus & { route_decisions: unknown[] }).route_decisions).map((rd: unknown, i: number) => {
+                  const d = rd as Record<string, unknown>;
+                  return (
+                    <TableRow key={i}>
+                      <TableCell className="text-xs font-mono">{String(d.route ?? d.route_key ?? '—')}</TableCell>
+                      <TableCell className="text-xs"><Badge className={statusColor(String(d.decision ?? d.action ?? ''))}>{humanize(String(d.decision ?? d.action ?? 'unknown'))}</Badge></TableCell>
+                      <TableCell className="text-xs text-muted-foreground">{String(d.reason ?? '—')}</TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
+
       {/* ML Rollout Controls */}
       <RolloutCard />
 
