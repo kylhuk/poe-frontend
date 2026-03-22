@@ -45,7 +45,7 @@ const createResponse = (payload: unknown) =>
     status: 200,
     headers: { get: () => null },
     json: async () => payload,
-  } as Response);
+  } as unknown as Response);
 
 describe('api.getScannerRecommendations', () => {
   afterEach(() => {
@@ -106,7 +106,7 @@ describe('api.getScannerRecommendations', () => {
             details: { reason: 'cursor malformed' },
           },
         }),
-      } as Response)
+      } as unknown as Response)
     );
     vi.stubGlobal('fetch', fetchMock);
 
@@ -173,7 +173,7 @@ describe('analytics api helpers', () => {
 
     const result = await getAnalyticsPricingOutliers({ query: 'Mageblood', maxBuyIn: 100 });
 
-    const init = fetchMock.mock.calls[0]?.[1] as RequestInit;
+    const init = (fetchMock.mock.calls[0] as unknown as unknown[])?.[1] as RequestInit;
     const proxiedUrl = new URL(`https://example.com${(init.headers as Record<string, string>)['x-proxy-path']}`);
     expect(proxiedUrl.searchParams.get('max_buy_in')).toBe('100');
     expect(result.query.maxBuyIn).toBe(100);

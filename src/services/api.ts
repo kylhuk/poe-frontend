@@ -465,7 +465,7 @@ export async function updateRolloutControls(updates: { shadowMode?: boolean; cut
   if (updates.cutoverEnabled !== undefined) body.cutover_enabled = updates.cutoverEnabled;
   if (updates.rollbackToIncumbent !== undefined) body.rollback_to_incumbent = updates.rollbackToIncumbent;
   const raw = await request<Record<string, unknown>>(`/api/v1/ml/leagues/${encodeURIComponent(league)}/rollout`, {
-    method: 'PUT',
+    method: 'POST',
     body: JSON.stringify(body),
   });
   return normalizeRolloutControls(raw);
@@ -714,7 +714,7 @@ function normalizeSearchHistoryResponse(payload: unknown): SearchHistoryResponse
     },
     filters: {
       leagueOptions: Array.isArray(filters.leagueOptions ?? filters.league_options)
-        ? (filters.leagueOptions ?? filters.league_options).filter((value): value is string => typeof value === 'string')
+        ? ((filters.leagueOptions ?? filters.league_options) as unknown[]).filter((value): value is string => typeof value === 'string')
         : [],
       price: normalizePriceRange(asObject(filters.price)),
       datetime: normalizeDatetimeRange(asObject(filters.datetime)),
