@@ -368,17 +368,8 @@ function OpportunityCard({
           {recommendation.expectedRoi != null && (
             <span>ROI: <span className="text-foreground font-medium">{(recommendation.expectedRoi * 100).toFixed(1)}%</span></span>
           )}
-          {recommendation.liquidityScore != null && (
-            <span>Liq: <span className="text-foreground font-medium">{recommendation.liquidityScore.toFixed(2)}</span></span>
-          )}
-          {recommendation.goldCost != null && (
-            <span>Gold: <span className="text-foreground font-medium">{recommendation.goldCost.toFixed(0)}g</span></span>
-          )}
           {recommendation.executionVenue && (
             <span>Venue: <span className="text-foreground font-medium">{recommendation.executionVenue}</span></span>
-          )}
-          {recommendation.mlInfluenceReason && (
-            <span className="text-accent">ML: {recommendation.mlInfluenceReason}</span>
           )}
         </div>
       </CardContent>

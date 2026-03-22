@@ -611,8 +611,6 @@ function normalizePriceCheckResponse(payload: unknown): PriceCheckResponse {
       : (typeof source.fallback_reason === 'string' ? source.fallback_reason : ''),
     fairValueP50: optNumber(source.fairValueP50 ?? source.fair_value_p50),
     fastSale24hPrice: optNumber(source.fastSale24hPrice ?? source.fast_sale_24h_price),
-    route: optString(source.route) ?? undefined,
-    league: optString(source.league) ?? undefined,
     ...normalizeTrustFields(source),
   };
 }
