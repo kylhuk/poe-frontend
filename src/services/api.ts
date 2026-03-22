@@ -842,7 +842,7 @@ function normalizeMlAutomationStatus(payload: unknown): MlAutomationStatus {
   };
 }
 
-function normalizeMlAutomationHistory(payload: unknown): import('@/types/api').MlAutomationHistory {
+function normalizeMlAutomationHistory(payload: unknown): MlAutomationHistory {
   const source = asObject(payload);
   const historyRows = Array.isArray(source.history) ? source.history : [];
   const summary = asObject(source.summary);
@@ -851,9 +851,6 @@ function normalizeMlAutomationHistory(payload: unknown): import('@/types/api').M
   const routeMetrics = Array.isArray(source.routeMetrics ?? source.route_metrics) ? (source.routeMetrics ?? source.route_metrics) as unknown[] : [];
   const datasetCoverage = asObject(source.datasetCoverage ?? source.dataset_coverage);
   const promotions = Array.isArray(source.promotions) ? source.promotions : [];
-  const rawModelMetrics = Array.isArray(source.modelMetrics ?? source.model_metrics) ? (source.modelMetrics ?? source.model_metrics) as unknown[] : [];
-  const rawModelHistory = Array.isArray(source.modelHistory ?? source.model_history) ? (source.modelHistory ?? source.model_history) as unknown[] : [];
-  const rawRouteFamilies = Array.isArray(source.routeFamilies ?? source.route_families) ? (source.routeFamilies ?? source.route_families) as unknown[] : [];
   return {
     league: optString(source.league) ?? 'Mirage',
     mode: optString(source.mode),
@@ -936,34 +933,7 @@ function normalizeMlAutomationHistory(payload: unknown): import('@/types/api').M
         promotedAt: optString(row.promotedAt ?? row.promoted_at),
       };
     }),
-    modelMetrics: rawModelMetrics.length > 0 ? rawModelMetrics.map((entry) => {
-      const row = asObject(entry);
-      return {
-        route: optString(row.route),
-        modelVersion: optString(row.modelVersion ?? row.model_version),
-        sampleCount: optNumber(row.sampleCount ?? row.sample_count),
-        avgMdape: optNumber(row.avgMdape ?? row.avg_mdape),
-        avgIntervalCoverage: optNumber(row.avgIntervalCoverage ?? row.avg_interval_coverage),
-        recordedAt: optString(row.recordedAt ?? row.recorded_at),
-      };
-    }) : undefined,
-    modelHistory: rawModelHistory.length > 0 ? rawModelHistory.map((entry) => {
-      const row = asObject(entry);
-      return {
-        modelVersion: optString(row.modelVersion ?? row.model_version),
-        promotedAt: optString(row.promotedAt ?? row.promoted_at),
-        retiredAt: optString(row.retiredAt ?? row.retired_at),
-        runsCount: optNumber(row.runsCount ?? row.runs_count),
-      };
-    }) : undefined,
-    routeFamilies: rawRouteFamilies.length > 0 ? rawRouteFamilies.map((entry) => {
-      const row = asObject(entry);
-      return {
-        family: optString(row.family),
-        routes: Array.isArray(row.routes) ? (row.routes as string[]) : [],
-        totalSamples: optNumber(row.totalSamples ?? row.total_samples),
-      };
-    }) : undefined,
+    observability: normalizeMlAutomationObservability(source.observability),
   };
 }
 
