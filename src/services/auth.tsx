@@ -5,6 +5,7 @@ import { logApiError } from './apiErrorLog';
 
 const PROJECT_ID = import.meta.env.VITE_SUPABASE_PROJECT_ID;
 const PROXY_URL = `https://${PROJECT_ID}.supabase.co/functions/v1/api-proxy`;
+const POE_SESSION_URL = `https://${PROJECT_ID}.supabase.co/functions/v1/poe-session`;
 
 // Module-level POESESSID so proxyFetch can attach it on every request
 let _poeSessionId: string | null = null;
