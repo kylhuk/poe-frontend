@@ -804,13 +804,28 @@ function optNumber(value: unknown): number | null {
   return typeof value === 'number' && Number.isFinite(value) ? value : null;
 }
 
-function normalizeMlAutomationStatus(payload: unknown): import('@/types/api').MlAutomationStatus {
+function normalizeMlAutomationObservability(raw: unknown): MlAutomationObservability {
+  const o = asObject(raw);
+  return {
+    datasetRows: optNumber(o.datasetRows ?? o.dataset_rows) ?? 0,
+    latestTrainingAsOf: optString(o.latestTrainingAsOf ?? o.latest_training_as_of),
+    promotedModels: optNumber(o.promotedModels ?? o.promoted_models) ?? 0,
+    latestPromotionAt: optString(o.latestPromotionAt ?? o.latest_promotion_at),
+    evalRuns: optNumber(o.evalRuns ?? o.eval_runs) ?? 0,
+    evalSampleRows: optNumber(o.evalSampleRows ?? o.eval_sample_rows) ?? 0,
+    latestEvalAt: optString(o.latestEvalAt ?? o.latest_eval_at),
+    evaluationAvailable: typeof (o.evaluationAvailable ?? o.evaluation_available) === 'boolean'
+      ? (o.evaluationAvailable ?? o.evaluation_available) as boolean
+      : false,
+  };
+}
+
+function normalizeMlAutomationStatus(payload: unknown): MlAutomationStatus {
   const source = asObject(payload);
   const latest = asObject(source.latestRun ?? source.latest_run);
   const hasLatest = Object.keys(latest).length > 0;
   return {
     league: optString(source.league) ?? 'Mirage',
-    mode: optString(source.mode),
     status: optString(source.status),
     activeModelVersion: optString(source.activeModelVersion ?? source.active_model_version),
     latestRun: hasLatest ? {
@@ -823,6 +838,7 @@ function normalizeMlAutomationStatus(payload: unknown): import('@/types/api').Ml
     routeHotspots: Array.isArray(source.routeHotspots ?? source.route_hotspots)
       ? (source.routeHotspots ?? source.route_hotspots) as unknown[]
       : [],
+    observability: normalizeMlAutomationObservability(source.observability),
   };
 }
 
