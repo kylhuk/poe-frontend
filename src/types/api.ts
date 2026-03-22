@@ -195,7 +195,7 @@ export interface MlPredictOneResponse {
   estimateTrust?: string;
   estimateWarning?: string | null;
   servingModelVersion?: string | null;
-  rollout?: string | null;
+  rollout?: Record<string, unknown> | null;
   shadowComparison?: ShadowComparison | null;
 }
 
@@ -514,6 +514,7 @@ export interface ScannerSummary {
   status: 'ok' | 'empty' | 'stale';
   lastRunAt: string | null;
   recommendationCount: number;
+  freshnessMinutes?: number | null;
 }
 
 export interface ScannerRecommendation {
@@ -594,6 +595,7 @@ export interface DashboardResponse {
     topOpportunity: string;
   };
   topOpportunities: ScannerRecommendation[];
+  deployment?: Record<string, unknown>;
 }
 
 // ========== ML Automation ==========
