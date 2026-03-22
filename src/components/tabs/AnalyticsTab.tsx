@@ -1254,15 +1254,6 @@ function RolloutCard() {
             />
             <Label htmlFor="cutover-enabled" className="text-xs">Cutover</Label>
           </div>
-          <div className="flex items-center gap-2">
-            <Switch
-              id="rollback-to-incumbent"
-              checked={data.rollbackToIncumbent}
-              disabled={updating}
-              onCheckedChange={(v) => toggle('rollbackToIncumbent', v)}
-            />
-            <Label htmlFor="rollback-to-incumbent" className="text-xs text-destructive">Rollback</Label>
-          </div>
         </div>
 
         <div className="flex items-center gap-4 text-[11px] text-muted-foreground">
