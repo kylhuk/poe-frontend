@@ -803,7 +803,7 @@ paths:
           description: Automation status
           content:
             application/json:
-              schema: { type: object, additionalProperties: true }
+              schema: { $ref: '#/components/schemas/MlAutomationStatusResponse' }
     options:
       tags: [ml]
       responses:
@@ -823,7 +823,7 @@ paths:
           description: Automation history
           content:
             application/json:
-              schema: { type: object, additionalProperties: true }
+              schema: { $ref: '#/components/schemas/MlAutomationHistoryResponse' }
     options:
       tags: [ml]
       responses:
@@ -1030,6 +1030,79 @@ components:
         updatedAt: { type: [string, 'null'], format: date-time }
         lastAction: { type: [string, 'null'] }
       required: [league, shadowMode, cutoverEnabled]
+
+    MlAutomationObservability:
+      type: object
+      properties:
+        datasetRows: { type: integer }
+        latestTrainingAsOf: { type: [string, 'null'], format: date-time }
+        promotedModels: { type: integer }
+        latestPromotionAt: { type: [string, 'null'], format: date-time }
+        evalRuns: { type: integer }
+        evalSampleRows: { type: integer }
+        latestEvalAt: { type: [string, 'null'], format: date-time }
+        evaluationAvailable: { type: boolean }
+      required:
+        - datasetRows
+        - promotedModels
+        - evalRuns
+        - evalSampleRows
+        - evaluationAvailable
+
+    MlAutomationStatusResponse:
+      type: object
+      properties:
+        league: { type: string }
+        status: { type: [string, 'null'] }
+        activeModelVersion: { type: [string, 'null'] }
+        latestRun:
+          type: [object, 'null']
+          properties:
+            runId: { type: [string, 'null'] }
+            status: { type: [string, 'null'] }
+            stopReason: { type: [string, 'null'] }
+            updatedAt: { type: [string, 'null'], format: date-time }
+        promotionVerdict: { type: [string, 'null'] }
+        routeHotspots:
+          type: array
+          items: { type: object, additionalProperties: true }
+        observability: { $ref: '#/components/schemas/MlAutomationObservability' }
+      required: [league, routeHotspots, observability]
+
+    MlAutomationHistoryResponse:
+      type: object
+      properties:
+        league: { type: string }
+        mode: { type: [string, 'null'] }
+        history:
+          type: array
+          items: { type: object, additionalProperties: true }
+        summary: { type: object, additionalProperties: true }
+        qualityTrend:
+          type: array
+          items: { type: object, additionalProperties: true }
+        trainingCadence:
+          type: array
+          items: { type: object, additionalProperties: true }
+        routeMetrics:
+          type: array
+          items: { type: object, additionalProperties: true }
+        datasetCoverage: { type: object, additionalProperties: true }
+        promotions:
+          type: array
+          items: { type: object, additionalProperties: true }
+        observability: { $ref: '#/components/schemas/MlAutomationObservability' }
+      required:
+        - league
+        - mode
+        - history
+        - summary
+        - qualityTrend
+        - trainingCadence
+        - routeMetrics
+        - datasetCoverage
+        - promotions
+        - observability
 
     StashScanStatus:
       type: object
