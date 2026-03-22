@@ -36,6 +36,7 @@ const API_SCHEMA = `{
 const EMPTY_SCAN_STATUS: StashScanStatus = {
   status: 'idle',
   activeScanId: null,
+  publishedScanId: null,
   startedAt: null,
   updatedAt: null,
   publishedAt: null,

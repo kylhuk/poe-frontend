@@ -120,16 +120,12 @@ Deno.serve(async (req) => {
     // Extract poe_session cookie from backend set-cookie and expose it as a custom header
     const setCookie = backendRes.headers.get("set-cookie");
     if (setCookie) {
-<<<<<<< HEAD
       responseHeaders.set("set-cookie", rewriteProxySetCookie(setCookie));
-=======
       const match = setCookie.match(/poe_session=([^;]+)/);
       if (match) {
         responseHeaders.set("x-poe-backend-session", match[1]);
-        // Expose this header to the browser
         responseHeaders.set("Access-Control-Expose-Headers", "x-poe-backend-session");
       }
->>>>>>> 11ba251db101db36f5c5d13e502a6c9588a25d30
     }
 
     const responseBody = await backendRes.arrayBuffer();

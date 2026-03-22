@@ -465,7 +465,7 @@ export async function updateRolloutControls(updates: { shadowMode?: boolean; cut
   if (updates.cutoverEnabled !== undefined) body.cutover_enabled = updates.cutoverEnabled;
   if (updates.rollbackToIncumbent !== undefined) body.rollback_to_incumbent = updates.rollbackToIncumbent;
   const raw = await request<Record<string, unknown>>(`/api/v1/ml/leagues/${encodeURIComponent(league)}/rollout`, {
-    method: 'PUT',
+    method: 'POST',
     body: JSON.stringify(body),
   });
   return normalizeRolloutControls(raw);

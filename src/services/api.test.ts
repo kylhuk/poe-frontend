@@ -106,7 +106,7 @@ describe('api.getScannerRecommendations', () => {
             details: { reason: 'cursor malformed' },
           },
         }),
-      } as Response)
+      } as unknown as Response)
     );
     vi.stubGlobal('fetch', fetchMock);
 
