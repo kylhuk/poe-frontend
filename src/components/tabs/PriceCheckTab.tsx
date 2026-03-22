@@ -14,7 +14,7 @@ import { useMouseGlow } from '@/hooks/useMouseGlow';
 /** Merged result combining price-check data with predict-one shadow/rollout metadata */
 interface MergedPriceResult extends PriceCheckResponse {
   servingModelVersion?: string | null;
-  rollout?: string | null;
+  rollout?: Record<string, unknown> | null;
   shadowComparison?: ShadowComparison | null;
 }
 
