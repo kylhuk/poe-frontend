@@ -514,6 +514,7 @@ export interface ScannerSummary {
   status: 'ok' | 'empty' | 'stale';
   lastRunAt: string | null;
   recommendationCount: number;
+  freshnessMinutes?: number | null;
 }
 
 export interface ScannerRecommendation {
