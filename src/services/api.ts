@@ -240,9 +240,10 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     const newBackendSession = response.headers.get('x-poe-backend-session');
     if (newBackendSession) setPoeBackendSession(newBackendSession);
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Network error';
-    logApiError({ method, path, errorCode: 'network_error', message });
-    throw err;
+    const rawMessage = err instanceof Error ? err.message : 'Network error';
+    const detail = `${method} ${path}: ${rawMessage}`;
+    logApiError({ method, path, errorCode: 'network_error', message: rawMessage });
+    throw new Error(detail);
   }
   if (!response.ok) {
     let payload: ApiErrorPayload = {};
@@ -306,6 +307,14 @@ export async function getAnalyticsAlerts() {
 
 export async function getAnalyticsBacktests() {
   return request<BacktestAnalytics>('/api/v1/ops/analytics/backtests');
+}
+
+export interface OpportunitiesAnalytics {
+  [key: string]: unknown;
+}
+
+export async function getAnalyticsOpportunities(): Promise<OpportunitiesAnalytics> {
+  return request<OpportunitiesAnalytics>('/api/v1/ops/analytics/opportunities');
 }
 
 function normalizeMlCandidateComparison(raw: unknown): MlCandidateComparison | null {
@@ -465,7 +474,7 @@ export async function updateRolloutControls(updates: { shadowMode?: boolean; cut
   if (updates.cutoverEnabled !== undefined) body.cutover_enabled = updates.cutoverEnabled;
   if (updates.rollbackToIncumbent !== undefined) body.rollback_to_incumbent = updates.rollbackToIncumbent;
   const raw = await request<Record<string, unknown>>(`/api/v1/ml/leagues/${encodeURIComponent(league)}/rollout`, {
-    method: 'PUT',
+    method: 'POST',
     body: JSON.stringify(body),
   });
   return normalizeRolloutControls(raw);
@@ -714,7 +723,7 @@ function normalizeSearchHistoryResponse(payload: unknown): SearchHistoryResponse
     },
     filters: {
       leagueOptions: Array.isArray(filters.leagueOptions ?? filters.league_options)
-        ? (filters.leagueOptions ?? filters.league_options).filter((value): value is string => typeof value === 'string')
+        ? ((filters.leagueOptions ?? filters.league_options) as unknown[]).filter((value): value is string => typeof value === 'string')
         : [],
       price: normalizePriceRange(asObject(filters.price)),
       datetime: normalizeDatetimeRange(asObject(filters.datetime)),
