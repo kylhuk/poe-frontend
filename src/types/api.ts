@@ -470,10 +470,21 @@ export interface DashboardResponse {
   deployment?: Record<string, unknown>;
 }
 
+// ========== ML Automation Observability ==========
+export interface MlAutomationObservability {
+  datasetRows: number;
+  latestTrainingAsOf: string | null;
+  promotedModels: number;
+  latestPromotionAt: string | null;
+  evalRuns: number;
+  evalSampleRows: number;
+  latestEvalAt: string | null;
+  evaluationAvailable: boolean;
+}
+
 // ========== ML Automation ==========
 export interface MlAutomationStatus {
   league: string;
-  mode?: string | null;
   status?: string | null;
   activeModelVersion: string | null;
   latestRun?: {
@@ -483,7 +494,8 @@ export interface MlAutomationStatus {
     updatedAt?: string | null;
   } | null;
   promotionVerdict?: string | null;
-  routeHotspots?: unknown[];
+  routeHotspots: unknown[];
+  observability: MlAutomationObservability;
 }
 
 export interface MlAutomationHistoryRun {
@@ -509,31 +521,9 @@ export interface MlAutomationHistoryTrendPoint {
   activeModelVersion: string | null;
 }
 
-export interface MlModelMetric {
-  route: string | null;
-  modelVersion: string | null;
-  sampleCount: number | null;
-  avgMdape: number | null;
-  avgIntervalCoverage: number | null;
-  recordedAt: string | null;
-}
-
-export interface MlModelHistoryEntry {
-  modelVersion: string | null;
-  promotedAt: string | null;
-  retiredAt: string | null;
-  runsCount: number | null;
-}
-
-export interface MlRouteFamily {
-  family: string | null;
-  routes: string[];
-  totalSamples: number | null;
-}
-
 export interface MlAutomationHistory {
   league: string;
-  mode?: string | null;
+  mode: string | null;
   history: MlAutomationHistoryRun[];
   summary: {
     activeModelVersion: string | null;
@@ -576,9 +566,7 @@ export interface MlAutomationHistory {
     modelVersion: string | null;
     promotedAt: string | null;
   }>;
-  modelMetrics?: MlModelMetric[];
-  modelHistory?: MlModelHistoryEntry[];
-  routeFamilies?: MlRouteFamily[];
+  observability: MlAutomationObservability;
 }
 
 // ========== API Service Interface ==========
@@ -597,15 +585,6 @@ export interface ApiService {
   startService(id: string): Promise<void>;
   stopService(id: string): Promise<void>;
   restartService(id: string): Promise<void>;
-
-  getFairValueItems(): Promise<FairValueItem[]>;
-  getStaleListings(): Promise<StaleListingOpp[]>;
-  getGemStates(): Promise<GemState[]>;
-  getHeistDrops(): Promise<HeistDrop[]>;
-  getShipmentRecommendation(): Promise<ShipmentRecommendation>;
-  getGoldShadowPrice(): Promise<GoldShadowData>;
-  getSessionRecommendation(): Promise<SessionRecommendation>;
-  simulateGearSwap(candidateItem: string): Promise<GearSwapResult>;
 
   priceCheck(req: PriceCheckRequest): Promise<PriceCheckResponse>;
   mlPredictOne(req: MlPredictOneRequest): Promise<MlPredictOneResponse>;

@@ -1042,66 +1042,6 @@ export const api: ApiService = {
     });
   },
 
-  async getFairValueItems() {
-    return [];
-  },
-
-  async getStaleListings() {
-    return [];
-  },
-
-  async getGemStates() {
-    return [];
-  },
-
-  async getHeistDrops() {
-    return [];
-  },
-
-  async getShipmentRecommendation() {
-    return {
-      chosenPort: 'n/a',
-      resourceMix: {},
-      dustToAdd: 0,
-      expectedValue: 0,
-      expectedValuePerHour: 0,
-      expectedRiskLoss: 0,
-      whyThisWon: 'n/a',
-      updatedAt: new Date().toISOString(),
-    };
-  },
-
-  async getGoldShadowPrice() {
-    return {
-      chaosPerGold: 0,
-      feeInChaos: 0,
-      denominationHint: 'n/a',
-      updatedAt: new Date().toISOString(),
-    };
-  },
-
-  async getSessionRecommendation() {
-    return {
-      recommended: 'map',
-      triggerReason: 'n/a',
-      updatedAt: new Date().toISOString(),
-    };
-  },
-
-  async simulateGearSwap(_candidateItem) {
-    return {
-      current: {
-        fireRes: 0, coldRes: 0, lightningRes: 0, chaosRes: 0, spellSuppression: 0,
-        life: 0, str: 0, dex: 0, int: 0, evasionMasteryActive: false, auraFit: false,
-      },
-      simulated: {
-        fireRes: 0, coldRes: 0, lightningRes: 0, chaosRes: 0, spellSuppression: 0,
-        life: 0, str: 0, dex: 0, int: 0, evasionMasteryActive: false, auraFit: false,
-      },
-      failStates: ['Not supported'],
-      passStates: [],
-    };
-  },
 
   async priceCheck(req) {
     const league = await primaryLeague();
