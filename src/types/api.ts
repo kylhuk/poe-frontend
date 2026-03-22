@@ -195,7 +195,7 @@ export interface MlPredictOneResponse {
   estimateTrust?: string;
   estimateWarning?: string | null;
   servingModelVersion?: string | null;
-  rollout?: string | null;
+  rollout?: Record<string, unknown> | null;
   shadowComparison?: ShadowComparison | null;
 }
 
