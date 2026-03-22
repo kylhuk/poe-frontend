@@ -240,9 +240,10 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     const newBackendSession = response.headers.get('x-poe-backend-session');
     if (newBackendSession) setPoeBackendSession(newBackendSession);
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Network error';
-    logApiError({ method, path, errorCode: 'network_error', message });
-    throw err;
+    const rawMessage = err instanceof Error ? err.message : 'Network error';
+    const detail = `${method} ${path}: ${rawMessage}`;
+    logApiError({ method, path, errorCode: 'network_error', message: rawMessage });
+    throw new Error(detail);
   }
   if (!response.ok) {
     let payload: ApiErrorPayload = {};
