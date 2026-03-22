@@ -98,7 +98,7 @@ describe('OpportunitiesTab', () => {
     render(<OpportunitiesTab />);
 
     await waitFor(() => {
-      expect(getScannerRecommendationsMock).toHaveBeenCalledWith({ sort: 'expected_profit_chaos', limit: 50 });
+      expect(getScannerRecommendationsMock).toHaveBeenCalledWith({ sort: 'expected_profit_per_operation_chaos', limit: 50 });
     });
 
     expect(await screen.findByText('64c')).toBeTruthy();
