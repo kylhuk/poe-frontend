@@ -714,7 +714,7 @@ function normalizeSearchHistoryResponse(payload: unknown): SearchHistoryResponse
     },
     filters: {
       leagueOptions: Array.isArray(filters.leagueOptions ?? filters.league_options)
-        ? (filters.leagueOptions ?? filters.league_options).filter((value): value is string => typeof value === 'string')
+        ? ((filters.leagueOptions ?? filters.league_options) as unknown[]).filter((value): value is string => typeof value === 'string')
         : [],
       price: normalizePriceRange(asObject(filters.price)),
       datetime: normalizeDatetimeRange(asObject(filters.datetime)),
