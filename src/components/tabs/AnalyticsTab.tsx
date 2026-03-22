@@ -43,7 +43,7 @@ import {
   type RolloutControls,
 } from '@/services/api';
 import { api } from '@/services/api';
-import type { MlAutomationStatus, MlAutomationHistory, PricingOutliersResponse, SearchHistoryResponse, SearchSuggestion } from '@/types/api';
+import type { MlAutomationStatus, MlAutomationHistory, MlAutomationObservability, PricingOutliersResponse, SearchHistoryResponse, SearchSuggestion } from '@/types/api';
 import { RenderState } from '@/components/shared/RenderState';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
