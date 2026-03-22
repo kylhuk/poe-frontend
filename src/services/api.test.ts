@@ -45,7 +45,7 @@ const createResponse = (payload: unknown) =>
     status: 200,
     headers: { get: () => null },
     json: async () => payload,
-  } as Response);
+  } as unknown as Response);
 
 describe('api.getScannerRecommendations', () => {
   afterEach(() => {
