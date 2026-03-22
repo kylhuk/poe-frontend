@@ -178,7 +178,7 @@ function PriceResultCard({
             )}
             {result.rollout && (
               <Badge variant="outline" className="text-[10px] font-mono px-1.5 py-0 h-5 border-accent/40 text-accent-foreground">
-                {result.rollout}
+                {JSON.stringify(result.rollout)}
               </Badge>
             )}
             {result.predictionSource && (
