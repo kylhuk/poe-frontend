@@ -2,9 +2,12 @@ import type {
   ApiService,
   AppMessage,
   DashboardResponse,
+  HealthResponse,
   MlAutomationHistory,
   MlAutomationObservability,
   MlAutomationStatus,
+  MlContractResponse,
+  MlLeagueStatusResponse,
   MlPredictOneRequest,
   MlPredictOneResponse,
   PriceCheckRequest,
@@ -872,6 +875,10 @@ function normalizeMlAutomationHistory(payload: unknown): MlAutomationHistory {
 
 
 export const api: ApiService = {
+  async getHealthz() {
+    return request<HealthResponse>('/healthz');
+  },
+
   async getDashboard() {
     return request<DashboardResponse>('/api/v1/ops/dashboard');
   },
@@ -974,7 +981,14 @@ export const api: ApiService = {
       method: 'POST',
     });
   },
+  async getMlContract() {
+    return request<MlContractResponse>('/api/v1/ml/contract');
+  },
 
+  async getMlLeagueStatus() {
+    const league = await primaryLeague();
+    return request<MlLeagueStatusResponse>(`/api/v1/ml/leagues/${encodeURIComponent(league)}/status`);
+  },
 
   async priceCheck(req) {
     const league = await primaryLeague();
