@@ -43,11 +43,6 @@ export interface PriceCheckResponse {
   estimateWarning?: string | null;
   fairValueP50?: number | null;
   fastSale24hPrice?: number | null;
-  searchDiagnostics?: SearchDiagnostics;
-  comparablesSummary?: ComparablesSummary;
-  valueDrivers?: ValueDrivers;
-  scenarioPrices?: ScenarioPrices;
-  shadowComparison?: ShadowComparison | null;
 }
 
 export interface SearchDiagnostics {
