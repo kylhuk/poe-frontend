@@ -605,6 +605,10 @@ export interface MlAutomationHistory {
     promotedAt: string | null;
   }>;
   observability: MlAutomationObservability;
+  charts?: {
+    mdapeHistory: Record<string, unknown>[];
+    coverageHistory: Record<string, unknown>[];
+  };
 }
 
 // ========== API Service Interface ==========

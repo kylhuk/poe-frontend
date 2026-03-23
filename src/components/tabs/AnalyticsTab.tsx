@@ -735,6 +735,7 @@ function MlAutomationPanel({ status, history, error }: { status: MlAutomationSta
           </Card>
           )}
 
+          {promotions.length > 0 && (
           <Card className="card-game">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-sans">Model promotions</CardTitle>
@@ -748,20 +749,17 @@ function MlAutomationPanel({ status, history, error }: { status: MlAutomationSta
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {promotions.length > 0 ? promotions.map((row) => (
+                  {promotions.map((row) => (
                     <TableRow key={`${row.modelVersion ?? 'unknown'}-${row.promotedAt ?? 'none'}`}>
                       <TableCell className="text-xs font-mono">{row.modelVersion ?? '—'}</TableCell>
                       <TableCell className="text-xs text-muted-foreground">{row.promotedAt ? formatDateTimeShort(row.promotedAt) : '—'}</TableCell>
                     </TableRow>
-                  )) : (
-                    <TableRow>
-                      <TableCell className="text-xs text-muted-foreground" colSpan={2}>No promoted model history</TableCell>
-                    </TableRow>
-                  )}
+                  ))}
                 </TableBody>
               </Table>
             </CardContent>
           </Card>
+          )}
         </>
       )}
 

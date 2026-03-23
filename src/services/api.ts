@@ -865,6 +865,19 @@ function normalizeMlAutomationHistory(payload: unknown): MlAutomationHistory {
       };
     }),
     observability: normalizeMlAutomationObservability(source.observability),
+    charts: (() => {
+      const rawCharts = source.charts;
+      if (!rawCharts || typeof rawCharts !== 'object') return undefined;
+      const c = rawCharts as Record<string, unknown>;
+      return {
+        mdapeHistory: Array.isArray(c.mdapeHistory ?? c.mdape_history)
+          ? (c.mdapeHistory ?? c.mdape_history) as Record<string, unknown>[]
+          : [],
+        coverageHistory: Array.isArray(c.coverageHistory ?? c.coverage_history)
+          ? (c.coverageHistory ?? c.coverage_history) as Record<string, unknown>[]
+          : [],
+      };
+    })(),
   };
 }
 
