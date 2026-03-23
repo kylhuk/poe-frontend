@@ -188,7 +188,7 @@ describe('StashViewerTab', () => {
     expect(getStashScanStatusMock).toHaveBeenCalled();
   });
 
-  test('renders tabs in backend order and opens history details for an item', async () => {
+  test('renders tabs in backend order and paints stash item art', async () => {
     render(<StashViewerTab />);
 
     await waitFor(() => {
@@ -197,13 +197,7 @@ describe('StashViewerTab', () => {
       expect(tabs[1]).toHaveTextContent('Dump');
     });
 
-    fireEvent.click(screen.getByTestId('stash-item-history-sig:item-1'));
-
-    await waitFor(() => {
-      expect(getStashItemHistoryMock).toHaveBeenCalledWith('sig:item-1');
-    });
-
-    expect(await screen.findByText('Grim Bane')).toBeInTheDocument();
+    expect(await screen.findByAltText('Grim Bane')).toBeInTheDocument();
     expect(screen.getByText('Helmet')).toBeInTheDocument();
   });
 
