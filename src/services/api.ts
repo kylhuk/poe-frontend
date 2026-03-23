@@ -743,6 +743,17 @@ function normalizeMlAutomationStatus(payload: unknown): MlAutomationStatus {
   const source = asObject(payload);
   const latest = asObject(source.latestRun ?? source.latest_run);
   const hasLatest = Object.keys(latest).length > 0;
+  const rawTrainerRuntime = source.trainerRuntime ?? source.trainer_runtime;
+  let trainerRuntime: MlAutomationStatus['trainerRuntime'] = null;
+  if (rawTrainerRuntime && typeof rawTrainerRuntime === 'object') {
+    const tr = rawTrainerRuntime as Record<string, unknown>;
+    trainerRuntime = {
+      stage: optString(tr.stage),
+      status: optString(tr.status),
+      updatedAt: optString(tr.updatedAt ?? tr.updated_at),
+      details: (tr.details && typeof tr.details === 'object') ? tr.details as Record<string, unknown> : {},
+    };
+  }
   return {
     league: optString(source.league) ?? 'Mirage',
     status: optString(source.status),
@@ -758,6 +769,7 @@ function normalizeMlAutomationStatus(payload: unknown): MlAutomationStatus {
       ? (source.routeHotspots ?? source.route_hotspots) as unknown[]
       : [],
     observability: normalizeMlAutomationObservability(source.observability),
+    trainerRuntime,
   };
 }
 
