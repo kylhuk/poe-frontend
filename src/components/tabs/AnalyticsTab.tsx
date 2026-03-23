@@ -345,7 +345,7 @@ function MlAutomationPanel({
                 : undefined,
             }
           : null,
-      ].filter((card): card is { label: string; value: string; detail?: string } => card !== null)
+      ].filter((card): card is { label: string; value: string; detail?: string | undefined } => card !== null)
     : [];
   const hasDatasetCoverage = Boolean(
     datasetCoverage && (
