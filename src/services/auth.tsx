@@ -7,12 +7,15 @@ import { logApiError } from './apiErrorLog';
 async function proxyFetch(path: string, init?: RequestInit): Promise<Response> {
   const { data: { session } } = await supabase.auth.getSession();
   const token = session?.access_token;
-  return fetch(`${API_BASE}/api/v1/auth${path}`, {
+  const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
+  const url = `https://${projectId}.supabase.co/functions/v1/api-proxy`;
+  return fetch(url, {
     ...init,
     credentials: 'include',
     headers: {
       'Content-Type': 'application/json',
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      'x-proxy-path': `/api/v1/auth${path}`,
       ...(init?.headers || {}),
     },
   });
