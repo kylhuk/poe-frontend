@@ -1,7 +1,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import { User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
-import { API_BASE } from '@/services/config';
+
 import { logApiError } from './apiErrorLog';
 
 async function proxyFetch(path: string, init?: RequestInit): Promise<Response> {
