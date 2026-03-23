@@ -981,7 +981,14 @@ export const api: ApiService = {
       method: 'POST',
     });
   },
+  async getMlContract() {
+    return request<MlContractResponse>('/api/v1/ml/contract');
+  },
 
+  async getMlLeagueStatus() {
+    const league = await primaryLeague();
+    return request<MlLeagueStatusResponse>(`/api/v1/ml/leagues/${encodeURIComponent(league)}/status`);
+  },
 
   async priceCheck(req) {
     const league = await primaryLeague();
