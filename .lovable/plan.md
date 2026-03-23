@@ -1,61 +1,57 @@
 
 
-## API Spec Alignment — Full Audit
+## Spec Alignment + Build Error Fix
 
-### Changes detected in apispec.yml
+### Problems Found
 
-The automation endpoints (`/automation/status` and `/automation/history`) now have formal schemas instead of `{ type: object, additionalProperties: true }`. Three new schemas were added: `MlAutomationStatusResponse`, `MlAutomationHistoryResponse`, and `MlAutomationObservability`.
+**Build errors:**
+1. `MergedPriceResult` is undefined — should be `PriceCheckResponse` (PriceCheckTab.tsx:290)
+2. `.map` on `unknown` in api.ts — the `??` expressions resolve to `unknown`, need explicit `as unknown[]` casts (6 occurrences)
 
----
+**Spec deviations:**
 
-### 1. Add `MlAutomationObservability` type (NEW)
-**File:** `src/types/api.ts`
+| Area | Current | Spec says |
+|------|---------|-----------|
+| `PriceCheckResponse` | Has `searchDiagnostics`, `comparablesSummary`, `valueDrivers`, `scenarioPrices`, `shadowComparison` | None of these fields exist |
+| `MlPredictOneResponse` | Has `searchDiagnostics`, `comparablesSummary`, `valueDrivers`, `scenarioPrices`, `servingModelVersion`, `shadowComparison` | None of these fields exist |
+| `MlAutomationStatus` | Missing `trainerRuntime` | Has optional `trainerRuntime: { stage, status, updatedAt, details }` |
+| `MlAutomationHistory` | Missing `charts` | Has `charts: { mdapeHistory[], coverageHistory[] }` |
 
-New interface matching the spec exactly:
-- `datasetRows`, `promotedModels`, `evalRuns`, `evalSampleRows`, `evaluationAvailable` (required)
-- `latestTrainingAsOf`, `latestPromotionAt`, `latestEvalAt` (nullable)
+### Plan
 
-### 2. Fix `MlAutomationStatus` to match `MlAutomationStatusResponse`
-**File:** `src/types/api.ts`
+#### 1. Fix `src/types/api.ts`
 
-- **Remove** `mode` field (not in spec)
-- **Add** `observability: MlAutomationObservability` (required in spec)
+- **Remove** from `PriceCheckResponse`: `searchDiagnostics`, `comparablesSummary`, `valueDrivers`, `scenarioPrices`, `shadowComparison` fields
+- **Remove** from `MlPredictOneResponse`: `searchDiagnostics`, `comparablesSummary`, `valueDrivers`, `scenarioPrices`, `servingModelVersion`, `shadowComparison` fields
+- **Remove** the now-orphaned interfaces: `SearchDiagnostics`, `ComparablesSummary`, `ValueDrivers`, `ScenarioPrices`, `ShadowComparison`, `ShadowComparisonSide`
+- **Add** `trainerRuntime` to `MlAutomationStatus`: `trainerRuntime?: { stage: string | null; status: string | null; updatedAt: string | null; details: Record<string, unknown> } | null`
+- **Add** `charts` to `MlAutomationHistory`: `charts?: { mdapeHistory: Record<string, unknown>[]; coverageHistory: Record<string, unknown>[] }`
 
-### 3. Fix `MlAutomationHistory` to match `MlAutomationHistoryResponse`
-**File:** `src/types/api.ts`
+#### 2. Fix `src/services/api.ts`
 
-- **Remove** `modelMetrics`, `modelHistory`, `routeFamilies` fields (not in spec)
-- **Remove** `MlModelMetric`, `MlModelHistoryEntry`, `MlRouteFamily` interfaces (no longer referenced)
-- **Add** `observability: MlAutomationObservability` (required in spec)
+- **Remove** all `searchDiagnostics`, `comparablesSummary`, `valueDrivers`, `scenarioPrices`, `shadowComparison` normalization from `normalizePriceCheckResponse`
+- **Remove** same fields + `servingModelVersion` from `normalizeMlPredictOneResponse`
+- **Fix** 6 `.map` on `unknown` errors by adding explicit `as unknown[]` casts on the `??` expressions (lines 532, 549, 554, 607, 624, 629)
+- **Add** `trainerRuntime` normalization to `normalizeMlAutomationStatus`
+- **Add** `charts` normalization to `normalizeMlAutomationHistory`
 
-### 4. Remove stub API methods and types not in the spec
-**File:** `src/types/api.ts` and `src/services/api.ts`
+#### 3. Fix `src/components/tabs/PriceCheckTab.tsx`
 
-The following have no corresponding endpoints in apispec.yml and are only referenced internally (no UI consumers):
-- Types: `FairValueItem`, `StaleListingOpp`, `GemState`, `HeistDrop`, `ShipmentRecommendation`, `GoldShadowData`, `SessionRecommendation`, `CharacterStats`, `GearSwapResult`, `ActivityType`, `HeistBin`, `SparklinePoint`
-- Stub methods: `getFairValueItems`, `getStaleListings`, `getGemStates`, `getHeistDrops`, `getShipmentRecommendation`, `getGoldShadowPrice`, `getSessionRecommendation`, `simulateGearSwap`
-- Remove from `ApiService` interface and from `api` object
+- **Change** `MergedPriceResult['comparables']` → `PriceCheckResponse['comparables']` (line 290)
+- **Remove** the `ShadowComparisonCard` component and its usage (lines 207, 240-288)
+- **Remove** value drivers display (lines 209-219)
+- **Remove** search diagnostics display (lines 221-225)
+- **Remove** scenario prices display (lines 227-231)
+- **Remove** `ShadowComparison` import and `GitCompare` icon import
 
-### 5. Update normalizers
-**File:** `src/services/api.ts`
+#### 4. Update `src/components/tabs/AnalyticsTab.tsx` — ML panel cleanup
 
-- `normalizeMlAutomationStatus`: Remove `mode`, add `observability` normalization
-- `normalizeMlAutomationHistory`: Remove `modelMetrics`/`modelHistory`/`routeFamilies` normalization, add `observability` normalization
-- Add new `normalizeMlAutomationObservability` helper
-
-### 6. Update UI — AnalyticsTab
-**File:** `src/components/tabs/AnalyticsTab.tsx`
-
-- **Remove** Model Metrics panel (~lines 761-792)
-- **Remove** Model Version History panel (~lines 794-823)
-- **Remove** Route Families panel (~lines 825-847)
-- **Remove** `mode` badge from `MlAutomationPanel` status display (line 561 uses `history?.mode ?? status?.mode` — now only `history?.mode`)
-- **Add** Observability panel showing `datasetRows`, `promotedModels`, `evalRuns`, `evalSampleRows`, `evaluationAvailable`, and nullable date fields — displayed in both automation status and history sections
-
----
+- **Add** trainer runtime display in the Automation Status card (show stage, status, updatedAt when `trainerRuntime` is present)
+- **Ensure** no empty panels render — all conditional sections already guard with `length > 0` or null checks; verify route metrics, promotions, dataset coverage, and charts sections only show when populated
 
 ### Files to edit
-1. `src/types/api.ts` — Add `MlAutomationObservability`, update `MlAutomationStatus` and `MlAutomationHistory`, remove unused stub types and interface methods
-2. `src/services/api.ts` — Update normalizers, remove stub methods
-3. `src/components/tabs/AnalyticsTab.tsx` — Remove 3 panels, update mode logic, add observability panel
+1. `src/types/api.ts` — Remove 6 interfaces, strip non-spec fields, add `trainerRuntime` and `charts`
+2. `src/services/api.ts` — Strip normalizer code, fix TS errors, add new normalizations
+3. `src/components/tabs/PriceCheckTab.tsx` — Remove shadow/diagnostics/drivers/scenarios UI, fix type reference
+4. `src/components/tabs/AnalyticsTab.tsx` — Add trainer runtime card, ensure no empty visuals
 
