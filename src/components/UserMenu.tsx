@@ -1,69 +1,34 @@
 import { useState } from 'react';
 import { useAuth } from '@/services/auth';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Separator } from '@/components/ui/separator';
-import { Settings, Eye, EyeOff, Save, Trash2, CheckCircle2, XCircle, AlertCircle, ExternalLink, Loader2, LogOut } from 'lucide-react';
-import { API_BASE } from '@/services/config';
+import { Settings, CheckCircle2, XCircle, AlertCircle, ExternalLink, LogOut } from 'lucide-react';
 import { toast } from 'sonner';
 
 const UserMenu = () => {
-  const { user, login, logout, sessionState, isLoading, supabaseUser, signOut, isAuthenticated, sessionPersisted } = useAuth();
-  const [value, setValue] = useState('');
-  const [showValue, setShowValue] = useState(false);
+  const { user, login, logout, sessionState, isLoading, supabaseUser, signOut, isAuthenticated } = useAuth();
   const [open, setOpen] = useState(false);
-  const [saving, setSaving] = useState(false);
 
-  const handleSave = async () => {
-    if (!value.trim()) return;
-    setSaving(true);
-    const success = await login(value.trim());
-    setSaving(false);
-    if (success) {
-      toast.success('Connected successfully');
-      setValue('');
-      setOpen(false);
-    } else {
-      toast.error('Login failed — check your POESESSID');
-    }
-  };
-
-  const handleClear = () => {
-    setValue('');
-    logout();
-  };
-
-  const handleOAuthLogin = () => {
-      const loginUrl = `${API_BASE}/api/v1/auth/login`;
-    const popup = window.open(
-      loginUrl,
-      'poe-auth',
-      'popup=yes,width=640,height=800,resizable=yes,scrollbars=yes',
-    );
-    if (!popup) {
-      window.location.href = loginUrl;
-      return;
-    }
-    popup.focus();
+  const handleOAuthLogin = async () => {
+    await login();
     setOpen(false);
   };
 
   const handleSignOut = async () => {
-    logout();
+    await logout();
     await signOut();
+    toast.success('Signed out');
     setOpen(false);
   };
 
   if (isLoading) return null;
 
-  // Public (not logged in): show a simple Sign In link
   if (!isAuthenticated) {
     return (
-      <a href="/login" className="text-xs text-primary hover:text-primary/80 font-medium transition-colors">
-        Sign In
-      </a>
+      <Button variant="ghost" size="sm" className="h-8 px-2 text-xs" onClick={handleOAuthLogin}>
+        <ExternalLink className="mr-2 h-3.5 w-3.5" />
+        Connect Path of Exile
+      </Button>
     );
   }
 
@@ -73,7 +38,6 @@ const UserMenu = () => {
       {connected && (
         <span className="text-xs font-mono text-foreground" data-testid="auth-connected">
           {user.accountName}
-          {sessionPersisted && <span className="text-[10px] text-muted-foreground ml-1" title="Session saved to your account">💾</span>}
         </span>
       )}
       <Popover open={open} onOpenChange={setOpen}>
@@ -83,7 +47,6 @@ const UserMenu = () => {
           </Button>
         </PopoverTrigger>
         <PopoverContent align="end" className="w-72 space-y-3 border-primary/30 animate-scale-fade-in">
-          {/* Supabase user info */}
           {supabaseUser && (
             <div className="text-xs text-muted-foreground truncate">
               {supabaseUser.email}
@@ -100,52 +63,12 @@ const UserMenu = () => {
             )}
           </div>
 
-          {/* OAuth Login */}
           {!connected && (
-            <>
-              <Button size="sm" className="w-full gap-2 text-xs h-8 btn-game" onClick={handleOAuthLogin}>
-                <ExternalLink className="h-3.5 w-3.5" />
-                Login with PoE Account
-              </Button>
-              <div className="flex items-center gap-2">
-                <Separator className="flex-1" />
-                <span className="text-xs text-muted-foreground">or</span>
-                <Separator className="flex-1" />
-              </div>
-            </>
+            <Button size="sm" className="w-full gap-2 text-xs h-8 btn-game" onClick={handleOAuthLogin}>
+              <ExternalLink className="h-3.5 w-3.5" />
+              Connect Path of Exile
+            </Button>
           )}
-
-          <div className="space-y-1.5">
-            <Label htmlFor="poesessid" className="text-xs">POESESSID</Label>
-            <div className="relative">
-              <Input
-                id="poesessid"
-                type={showValue ? 'text' : 'password'}
-                value={value}
-                onChange={(e) => setValue(e.target.value)}
-                placeholder="Paste your POESESSID"
-                className="pr-8 text-xs h-8 font-mono focus:shadow-[0_0_12px_-3px_hsl(38,55%,42%,0.3)]"
-              />
-              <button
-                type="button"
-                onClick={() => setShowValue(!showValue)}
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-              >
-                {showValue ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
-              </button>
-            </div>
-          </div>
-
-          <div className="flex gap-2">
-            <Button size="sm" className="flex-1 gap-1 text-xs h-7 btn-game" onClick={handleSave} disabled={!value.trim() || saving}>
-              {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />} Save
-            </Button>
-            <Button size="sm" variant="destructive" className="gap-1 text-xs h-7 btn-game" onClick={handleClear}>
-              <Trash2 className="h-3 w-3" /> Clear
-            </Button>
-          </div>
-
-          <Separator />
 
           <Button size="sm" variant="ghost" className="w-full gap-2 text-xs h-7 text-muted-foreground hover:text-foreground" onClick={handleSignOut}>
             <LogOut className="h-3 w-3" /> Sign Out

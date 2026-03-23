@@ -1,19 +1,9 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 import { rewriteProxySetCookie } from "./cookies.ts";
+import { buildForwardHeaders, getCorsHeaders } from "./contract.ts";
 
 const API_BASE = "https://api.poe.lama-lan.ch";
-
-function getCorsHeaders(req: Request): Record<string, string> {
-  const origin = req.headers.get("origin") || "*";
-  return {
-    "Access-Control-Allow-Origin": origin,
-    "Access-Control-Allow-Headers":
-      "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version, x-proxy-path, x-poe-session, x-poe-backend-session",
-    "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, PATCH, OPTIONS",
-    "Access-Control-Allow-Credentials": "true",
-  };
-}
 
 Deno.serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
@@ -84,25 +74,12 @@ Deno.serve(async (req) => {
   const apiKey = Deno.env.get("VITE_API_KEY");
   const targetUrl = `${API_BASE}${proxyPath}`;
 
-  const forwardHeaders: Record<string, string> = {
-    "Content-Type": "application/json",
-  };
+  const forwardHeaders = buildForwardHeaders({
+    existingCookie: req.headers.get("cookie") || "",
+    backendSession: req.headers.get("x-poe-backend-session"),
+  });
   if (apiKey) {
     forwardHeaders["Authorization"] = `Bearer ${apiKey}`;
-  }
-
-  // Build cookie string from custom headers
-  const poeSession = req.headers.get("x-poe-session");
-  const poeBackendSession = req.headers.get("x-poe-backend-session");
-  const existingCookie = req.headers.get("cookie") || "";
-
-  const cookieParts: string[] = [];
-  if (existingCookie) cookieParts.push(existingCookie);
-  if (poeSession) cookieParts.push(`POESESSID=${poeSession}`);
-  if (poeBackendSession) cookieParts.push(`poe_session=${poeBackendSession}`);
-
-  if (cookieParts.length > 0) {
-    forwardHeaders["Cookie"] = cookieParts.join("; ");
   }
 
   try {

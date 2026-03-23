@@ -5,6 +5,3 @@ verify_jwt = true
 
 [functions.api-proxy]
 verify_jwt = false
-
-[functions.poe-session]
-verify_jwt = false

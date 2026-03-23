@@ -243,17 +243,17 @@ test('scenario inventory coverage emits evidence artifacts', async ({ page }) =>
 
     if (scenario.id === 'auth-settings-save-session-refresh') {
       await page.getByTestId('settings-trigger').click();
-      await page.getByLabel('POESESSID').fill('qa-invalid-session-token');
-      await page.getByRole('button', { name: 'Save' }).click();
+      await expect(page.getByLabel('POESESSID')).toHaveCount(0);
+      await expect(page.getByRole('button', { name: 'Connect Path of Exile' })).toBeVisible();
       await writeScenarioArtifact(page, toWorkspaceArtifactPath(scenario.artifact));
       continue;
     }
 
     if (scenario.id === 'auth-settings-clear-logout') {
       await page.getByTestId('settings-trigger').click();
-      const clearButton = page.getByRole('button', { name: 'Clear' }).last();
-      await expect(clearButton).toBeVisible();
-      await clearButton.click({ force: true });
+      const signOutButton = page.getByRole('button', { name: 'Sign Out' }).last();
+      await expect(signOutButton).toBeVisible();
+      await signOutButton.click({ force: true });
       await writeScenarioArtifact(page, toWorkspaceArtifactPath(scenario.artifact));
       continue;
     }

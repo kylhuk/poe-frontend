@@ -567,14 +567,18 @@ paths:
   /api/v1/auth/login:
     get:
       tags: [auth]
-      summary: OAuth login (currently disabled)
+      summary: Start OAuth login
       security: []
       responses:
-        '501':
-          description: OAuth disabled
+        '200':
+          description: OAuth login handoff
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+              schema:
+                type: object
+                properties:
+                  authorizeUrl: { type: string }
+                required: [authorizeUrl]
     options:
       tags: [auth]
       security: []
@@ -584,14 +588,17 @@ paths:
   /api/v1/auth/callback:
     get:
       tags: [auth]
-      summary: OAuth callback (currently disabled)
+      summary: OAuth callback relay
       security: []
       responses:
-        '501':
-          description: OAuth disabled
+        '200':
+          description: OAuth callback handled
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+              schema:
+                type: object
+                properties:
+                  status: { type: string }
     options:
       tags: [auth]
       security: []
@@ -611,30 +618,11 @@ paths:
               schema: { type: object, additionalProperties: true }
     post:
       tags: [auth]
-      summary: Bootstrap backend auth session from POESESSID
+      summary: Reject legacy session bootstrap payloads
       security: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                poeSessionId: { type: string }
-                poeSESSID: { type: string }
-                POESESSID: { type: string }
-                poesessid: { type: string }
       responses:
-        '200':
-          description: Connected session
-          headers:
-            Set-Cookie:
-              schema: { type: string }
-          content:
-            application/json:
-              schema: { type: object, additionalProperties: true }
         '400':
-          description: Invalid input
+          description: Legacy bootstrap rejected
           content:
             application/json:
               schema: { $ref: '#/components/schemas/ErrorEnvelope' }

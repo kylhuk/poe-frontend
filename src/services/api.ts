@@ -181,7 +181,7 @@ type ContractPayload = {
 
 import { logApiError } from './apiErrorLog';
 import { supabase } from '@/integrations/supabase/client';
-import { getPoeSessionId, setPoeBackendSession, getPoeBackendSession } from '@/services/auth';
+import { setPoeBackendSession, getPoeBackendSession } from '@/services/auth';
 
 let cachedPrimaryLeague: string | null = null;
 
@@ -199,8 +199,6 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     const url = `https://${projectId}.supabase.co/functions/v1/api-proxy`;
 
     const extraHeaders: Record<string, string> = {};
-    const poeSession = getPoeSessionId();
-    if (poeSession) extraHeaders['x-poe-session'] = poeSession;
     const backendSession = getPoeBackendSession();
     if (backendSession) extraHeaders['x-poe-backend-session'] = backendSession;
 
@@ -217,7 +215,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     });
 
     // Capture backend session cookie from proxy response
-    const newBackendSession = response.headers.get('x-poe-backend-session');
+    const newBackendSession = response.headers?.get('x-poe-backend-session');
     if (newBackendSession) setPoeBackendSession(newBackendSession);
   } catch (err) {
     const rawMessage = err instanceof Error ? err.message : 'Network error';

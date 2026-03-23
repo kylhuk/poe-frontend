@@ -1,15 +1,24 @@
 import { afterEach, describe, expect, test, vi } from 'vitest';
 
-const { getSessionMock } = vi.hoisted(() => ({
+const mocks = vi.hoisted(() => ({
   getSessionMock: vi.fn(),
+  getPoeSessionIdMock: vi.fn(),
+  getPoeBackendSessionMock: vi.fn(),
+  setPoeBackendSessionMock: vi.fn(),
 }));
 
 vi.mock('@/integrations/supabase/client', () => ({
   supabase: {
     auth: {
-      getSession: getSessionMock,
+      getSession: mocks.getSessionMock,
     },
   },
+}));
+
+vi.mock('@/services/auth', () => ({
+  getPoeSessionId: mocks.getPoeSessionIdMock,
+  getPoeBackendSession: mocks.getPoeBackendSessionMock,
+  setPoeBackendSession: mocks.setPoeBackendSessionMock,
 }));
 
 import {
@@ -55,7 +64,9 @@ describe('api.getScannerRecommendations', () => {
 
   test('serializes filters into backend query params and returns metadata', async () => {
     vi.stubEnv('VITE_SUPABASE_PROJECT_ID', 'project-id');
-    getSessionMock.mockResolvedValue({ data: { session: { access_token: 'token-123' } } });
+    mocks.getSessionMock.mockResolvedValue({ data: { session: { access_token: 'token-123' } } });
+    mocks.getPoeSessionIdMock.mockReturnValue('legacy-session-id');
+    mocks.getPoeBackendSessionMock.mockReturnValue(null);
     const responsePayload = {
       recommendations: [sampleRecommendation],
       meta: {
@@ -80,6 +91,7 @@ describe('api.getScannerRecommendations', () => {
     const init = (fetchMock.mock.calls[0] as unknown[])[1] as RequestInit;
     const parsedUrl = new URL(String(calledUrl));
     expect(parsedUrl.pathname).toBe('/functions/v1/api-proxy');
+    expect((init.headers as Record<string, string>)['x-poe-session']).toBeUndefined();
     expect((init.headers as Record<string, string>)['x-proxy-path']).toContain('/api/v1/ops/scanner/recommendations');
     const proxiedUrl = new URL(`https://example.com${(init.headers as Record<string, string>)['x-proxy-path']}`);
     expect(proxiedUrl.searchParams.get('sort')).toBe('liquidity_score');
@@ -93,7 +105,7 @@ describe('api.getScannerRecommendations', () => {
 
   test('propagates invalid cursor metadata errors instead of swallowing them', async () => {
     vi.stubEnv('VITE_SUPABASE_PROJECT_ID', 'project-id');
-    getSessionMock.mockResolvedValue({ data: { session: { access_token: 'token-123' } } });
+    mocks.getSessionMock.mockResolvedValue({ data: { session: { access_token: 'token-123' } } });
     const fetchMock = vi.fn(() =>
       Promise.resolve({
         ok: false,
@@ -122,7 +134,7 @@ describe('analytics api helpers', () => {
 
   test('normalizes nested search-history query payloads', async () => {
     vi.stubEnv('VITE_SUPABASE_PROJECT_ID', 'project-id');
-    getSessionMock.mockResolvedValue({ data: { session: { access_token: 'token-123' } } });
+    mocks.getSessionMock.mockResolvedValue({ data: { session: { access_token: 'token-123' } } });
     const fetchMock = vi.fn(() => createResponse({
       query: { text: 'Mageblood', league: 'Mirage', sort: 'item_name', order: 'asc' },
       filters: {
@@ -142,7 +154,7 @@ describe('analytics api helpers', () => {
 
   test('serializes analytics pricing outliers max_buy_in and normalizes nested query payload', async () => {
     vi.stubEnv('VITE_SUPABASE_PROJECT_ID', 'project-id');
-    getSessionMock.mockResolvedValue({ data: { session: { access_token: 'token-123' } } });
+    mocks.getSessionMock.mockResolvedValue({ data: { session: { access_token: 'token-123' } } });
     const fetchMock = vi.fn(() => createResponse({
       query: {
         query: 'Mageblood',
@@ -182,7 +194,7 @@ describe('analytics api helpers', () => {
 
   test('normalizes older pricing outlier payloads without derived fields', async () => {
     vi.stubEnv('VITE_SUPABASE_PROJECT_ID', 'project-id');
-    getSessionMock.mockResolvedValue({ data: { session: { access_token: 'token-123' } } });
+    mocks.getSessionMock.mockResolvedValue({ data: { session: { access_token: 'token-123' } } });
     const fetchMock = vi.fn(() => createResponse({
       query: {
         query: 'Mageblood',
@@ -217,7 +229,7 @@ describe('analytics api helpers', () => {
 
   test('does not invent omitted nested pricing outlier query fields', async () => {
     vi.stubEnv('VITE_SUPABASE_PROJECT_ID', 'project-id');
-    getSessionMock.mockResolvedValue({ data: { session: { access_token: 'token-123' } } });
+    mocks.getSessionMock.mockResolvedValue({ data: { session: { access_token: 'token-123' } } });
     const fetchMock = vi.fn(() => createResponse({
       query: {
         league: 'Mirage',
@@ -245,7 +257,7 @@ describe('analytics api helpers', () => {
 
   test('falls back to top-level pricing outlier query metadata when nested fields are absent', async () => {
     vi.stubEnv('VITE_SUPABASE_PROJECT_ID', 'project-id');
-    getSessionMock.mockResolvedValue({ data: { session: { access_token: 'token-123' } } });
+    mocks.getSessionMock.mockResolvedValue({ data: { session: { access_token: 'token-123' } } });
     const fetchMock = vi.fn(() => createResponse({
       query: {
         league: 'Mirage',
@@ -281,7 +293,7 @@ describe('ml predict-one and price-check hybrid contract', () => {
 
   test('normalizes hybrid search diagnostics and scenarios', async () => {
     vi.stubEnv('VITE_SUPABASE_PROJECT_ID', 'project-id');
-    getSessionMock.mockResolvedValue({ data: { session: { access_token: 'token-123' } } });
+    mocks.getSessionMock.mockResolvedValue({ data: { session: { access_token: 'token-123' } } });
     const fetchMock = vi.fn(() => createResponse({
       predictedValue: 101,
       currency: 'chaos',
