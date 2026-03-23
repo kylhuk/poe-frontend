@@ -76,7 +76,6 @@ Deno.serve(async (req) => {
 
   const forwardHeaders = buildForwardHeaders({
     existingCookie: req.headers.get("cookie") || "",
-    backendSession: req.headers.get("x-poe-backend-session"),
   });
   if (apiKey) {
     forwardHeaders["Authorization"] = `Bearer ${apiKey}`;
