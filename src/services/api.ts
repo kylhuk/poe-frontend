@@ -496,11 +496,6 @@ function normalizePriceCheckResponse(payload: unknown): PriceCheckResponse {
   const p10 = typeof intervalSource.p10 === 'number' ? intervalSource.p10 : null;
   const p90 = typeof intervalSource.p90 === 'number' ? intervalSource.p90 : null;
   const rawComparables = Array.isArray(source.comparables) ? source.comparables : [];
-  const searchRaw = asObject(source.searchDiagnostics ?? source.search_diagnostics);
-  const comparablesSummaryRaw = asObject(source.comparablesSummary ?? source.comparables_summary);
-  const valueDriversRaw = asObject(source.valueDrivers ?? source.value_drivers);
-  const scenarioPricesRaw = asObject(source.scenarioPrices ?? source.scenario_prices);
-  const shadowRaw = asObject(source.shadowComparison ?? source.shadow_comparison);
 
   return {
     predictedValue: typeof source.predictedValue === 'number' ? source.predictedValue : 0,
@@ -528,47 +523,6 @@ function normalizePriceCheckResponse(payload: unknown): PriceCheckResponse {
       : (typeof source.fallback_reason === 'string' ? source.fallback_reason : ''),
     fairValueP50: optNumber(source.fairValueP50 ?? source.fair_value_p50),
     fastSale24hPrice: optNumber(source.fastSale24hPrice ?? source.fast_sale_24h_price),
-    searchDiagnostics: {
-      stage: (optNumber(searchRaw.stage) ?? 0) as 0 | 1 | 2 | 3 | 4,
-      candidateCount: optNumber(searchRaw.candidateCount ?? searchRaw.candidate_count) ?? 0,
-      effectiveSupport: optNumber(searchRaw.effectiveSupport ?? searchRaw.effective_support) ?? 0,
-      droppedAffixes: Array.isArray(searchRaw.droppedAffixes ?? searchRaw.dropped_affixes)
-        ? (searchRaw.droppedAffixes ?? searchRaw.dropped_affixes as unknown[])
-            .map((entry) => optString(entry) ?? '')
-            .filter((entry) => entry.length > 0)
-        : [],
-      degradationReason: optString(searchRaw.degradationReason ?? searchRaw.degradation_reason),
-    },
-    comparablesSummary: {
-      anchorPrice: optNumber(comparablesSummaryRaw.anchorPrice ?? comparablesSummaryRaw.anchor_price),
-      anchorLow: optNumber(comparablesSummaryRaw.anchorLow ?? comparablesSummaryRaw.anchor_low),
-      anchorHigh: optNumber(comparablesSummaryRaw.anchorHigh ?? comparablesSummaryRaw.anchor_high),
-    },
-    valueDrivers: {
-      positive: Array.isArray(valueDriversRaw.positive) ? valueDriversRaw.positive.map((entry) => String(entry)) : [],
-      negative: Array.isArray(valueDriversRaw.negative) ? valueDriversRaw.negative.map((entry) => String(entry)) : [],
-    },
-    scenarioPrices: {
-      weakerRolls: Array.isArray(scenarioPricesRaw.weakerRolls ?? scenarioPricesRaw.weaker_rolls)
-        ? (scenarioPricesRaw.weakerRolls ?? scenarioPricesRaw.weaker_rolls as unknown[])
-            .map((entry) => optNumber(entry))
-            .filter((entry): entry is number => entry != null)
-        : [],
-      strongerRolls: Array.isArray(scenarioPricesRaw.strongerRolls ?? scenarioPricesRaw.stronger_rolls)
-        ? (scenarioPricesRaw.strongerRolls ?? scenarioPricesRaw.stronger_rolls as unknown[])
-            .map((entry) => optNumber(entry))
-            .filter((entry): entry is number => entry != null)
-        : [],
-    },
-    shadowComparison: Object.keys(shadowRaw).length > 0
-      ? {
-          candidateModelVersion: optString(shadowRaw.candidateModelVersion ?? shadowRaw.candidate_model_version),
-          incumbentModelVersion: optString(shadowRaw.incumbentModelVersion ?? shadowRaw.incumbent_model_version),
-          candidate: null,
-          incumbent: null,
-          deltaPercent: optNumber(shadowRaw.deltaPercent ?? shadowRaw.delta_percent),
-        }
-      : null,
     ...normalizeTrustFields(source),
   };
 }
