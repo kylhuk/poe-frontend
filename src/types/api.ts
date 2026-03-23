@@ -528,6 +528,12 @@ export interface MlAutomationStatus {
   promotionVerdict?: string | null;
   routeHotspots: unknown[];
   observability: MlAutomationObservability;
+  trainerRuntime?: {
+    stage: string | null;
+    status: string | null;
+    updatedAt: string | null;
+    details: Record<string, unknown>;
+  } | null;
 }
 
 export interface MlAutomationHistoryRun {
