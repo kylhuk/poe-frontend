@@ -199,13 +199,13 @@ const StashViewerTab = forwardRef<HTMLDivElement, Record<string, never>>(functio
 
   useEffect(() => {
     const iv = window.setInterval(() => {
-      loadPublished().catch((err: unknown) => {
+      pollStatus().catch((err: unknown) => {
         setError(err instanceof Error ? err.message : 'Stash feature unavailable');
         setStatus('degraded');
       });
     }, 5_000);
     return () => clearInterval(iv);
-  }, [loadPublished]);
+  }, [pollStatus]);
 
   const tab = activeTab;
   const specialLayout = tab ? getSpecialLayout(tab) : null;
