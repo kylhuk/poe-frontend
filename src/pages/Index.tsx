@@ -4,10 +4,11 @@ import ServicesTab from "@/components/tabs/ServicesTab";
 import AnalyticsTab from "@/components/tabs/AnalyticsTab";
 import PriceCheckTab from "@/components/tabs/PriceCheckTab";
 import StashViewerTab from "@/components/tabs/StashViewerTab";
+import EconomyTab from "@/components/tabs/EconomyTab";
 import MessagesTab from "@/components/tabs/MessagesTab";
 import OpportunitiesTab from "@/components/tabs/OpportunitiesTab";
 import DebugTrafficTab from "@/components/tabs/DebugTrafficTab";
-import { LayoutDashboard, Server, BarChart3, Search, Grid3X3, MessageSquare, TrendingUp, Bug } from "lucide-react";
+import { LayoutDashboard, Server, BarChart3, Search, Grid3X3, MessageSquare, TrendingUp, Bug, Coins } from "lucide-react";
 import UserMenu from "@/components/UserMenu";
 import ApiErrorPanel from "@/components/ApiErrorPanel";
 import { useAuth, type UserRole } from "@/services/auth";
@@ -62,6 +63,13 @@ const makeTabs = (subtab?: string, onSubtabChange?: (s: string) => void): TabDef
     label: "Stash Viewer",
     icon: <Grid3X3 className="h-3.5 w-3.5" />,
     content: <StashViewerTab />,
+    roles: ["member", "admin"],
+  },
+  {
+    id: "economy",
+    label: "Economy",
+    icon: <Coins className="h-3.5 w-3.5" />,
+    content: <EconomyTab />,
     roles: ["member", "admin"],
   },
   {
