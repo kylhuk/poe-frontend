@@ -249,4 +249,60 @@ describe('StashViewerTab', () => {
 
     expect(getStashTabsMock).toHaveBeenCalledTimes(2);
   });
+
+  test('shows stash data even when scan status reports 0 progress', async () => {
+    getStashStatusMock.mockResolvedValue({
+      status: 'connected_populated',
+      connected: true,
+      tabCount: 19,
+      itemCount: 796,
+      session: { accountName: 'qa-exile', expiresAt: '2099-01-01T00:00:00Z' },
+      publishedScanId: 'scan-1',
+      publishedAt: '2026-03-21T12:00:00Z',
+      scanStatus: {
+        status: 'running',
+        activeScanId: 'scan-3',
+        publishedScanId: 'scan-1',
+        startedAt: '2026-03-21T12:01:00Z',
+        updatedAt: '2026-03-21T12:02:00Z',
+        publishedAt: null,
+        progress: { tabsTotal: 19, tabsProcessed: 0, itemsTotal: 0, itemsProcessed: 0 },
+        error: null,
+      },
+    });
+
+    render(<StashViewerTab />);
+
+    // Stash grid should still render from previously loaded tab data
+    expect(await screen.findByTestId('stash-panel-grid')).toBeInTheDocument();
+    // Should show soft message instead of scary 0/19
+    expect(screen.getByText(/showing last available stash data/i)).toBeInTheDocument();
+  });
+
+  test('shows mismatch warning when backend returns wrong tab index', async () => {
+    const mismatchPayload = {
+      ...publishedTabsPayload,
+      stashTabs: [{
+        ...publishedTabsPayload.stashTabs[0],
+        returnedIndex: 0,
+      }],
+    };
+    getStashTabsMock
+      .mockResolvedValueOnce(publishedTabsPayload)
+      .mockResolvedValueOnce(mismatchPayload);
+
+    render(<StashViewerTab />);
+    await screen.findByTestId('stash-panel-grid');
+
+    // Click second tab (tabIndex=1)
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('stash-tab-tab-9'));
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId('tab-mismatch-warning')).toBeInTheDocument();
+    });
+  });
 });
