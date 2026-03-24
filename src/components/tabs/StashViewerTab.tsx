@@ -242,22 +242,25 @@ const StashViewerTab = forwardRef<HTMLDivElement, Record<string, never>>(functio
         </Button>
       </div>
 
-      <div className="flex items-end gap-0">
-        {tabs.map((t, i) => (
+      <div className="flex items-end gap-0 flex-wrap">
+        {tabsMeta.map((t, i) => (
           <button
             type="button"
             data-testid={`stash-tab-${t.id}`}
             key={t.id}
-            onClick={() => setActiveTab(i)}
+            onClick={() => {
+              setActiveTabIndex(t.tabIndex);
+              loadTab(t.tabIndex);
+            }}
             className={cn(
               'px-4 py-1.5 text-xs font-display tracking-wide border border-b-0 transition-all relative -mb-px',
-              i === activeTab
+              t.tabIndex === activeTabIndex
                 ? 'bg-gold-dim/30 text-gold-bright border-gold-dim z-10'
                 : 'bg-card text-muted-foreground border-gold-dim/30 hover:text-gold hover:bg-gold-dim/10'
             )}
           >
             {t.name}
-            {t.type === 'quad' && <span className="ml-1 text-[9px] opacity-50">(Q)</span>}
+            {t.type === 'QuadStash' && <span className="ml-1 text-[9px] opacity-50">(Q)</span>}
           </button>
         ))}
       </div>
