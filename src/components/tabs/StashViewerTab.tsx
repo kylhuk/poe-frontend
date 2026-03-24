@@ -208,13 +208,12 @@ const StashViewerTab = forwardRef<HTMLDivElement, Record<string, never>>(functio
     return () => clearInterval(iv);
   }, [loadPublished]);
 
-  const tab = tabs[activeTab];
+  const tab = activeTab;
   const specialLayout = tab ? getSpecialLayout(tab) : null;
   const isGrid = tab && !specialLayout;
   const gridSize = (() => {
     if (!tab) return 12;
     if (tab.quadLayout || tab.type === 'quad') return 24;
-    // Auto-detect from item positions
     const maxCoord = tab.items.reduce((max, item) => Math.max(max, item.x + item.w, item.y + item.h), 0);
     return maxCoord > 12 ? 24 : 12;
   })();
