@@ -195,6 +195,11 @@ export default function EconomyTab() {
               <option key={c.key} value={c.key}>{c.label} ({c.items.length})</option>
             ))}
           </select>
+          {historyProgress && (
+            <span className="text-[10px] text-muted-foreground font-mono whitespace-nowrap">
+              Loading prices: {historyProgress.loaded}/{historyProgress.total}
+            </span>
+          )}
           <Button variant="outline" size="sm" className="h-8 text-xs" onClick={load}>
             <RefreshCw className="h-3 w-3 mr-1" /> Reload
           </Button>
