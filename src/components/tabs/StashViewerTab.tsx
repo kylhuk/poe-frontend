@@ -23,6 +23,13 @@ import {
 import { RenderState } from '@/components/shared/RenderState';
 import NormalGrid from '@/components/stash/NormalGrid';
 import SpecialLayoutGrid from '@/components/stash/SpecialLayoutGrid';
+import SpecialGrid from '@/components/stash/SpecialGrid';
+
+const FLOW_GRID_TYPES = new Set([
+  'currency', 'map', 'fragment', 'essence', 'divination',
+  'unique', 'delve', 'blight', 'ultimatum', 'delirium', 'metamorph',
+  'flask', 'gem',
+]);
 
 const API_SCHEMA = `{
   "scanId": "string | null",
@@ -301,7 +308,10 @@ const StashViewerTab = forwardRef<HTMLDivElement, Record<string, never>>(functio
       {tab && specialLayout && (
         <SpecialLayoutGrid items={tab.items} layout={specialLayout} />
       )}
-      {tab && isGrid && (
+      {tab && !specialLayout && FLOW_GRID_TYPES.has(tab.type) && (
+        <SpecialGrid items={tab.items} tabType={tab.type} />
+      )}
+      {tab && isGrid && !FLOW_GRID_TYPES.has(tab.type) && (
         <NormalGrid items={tab.items} gridSize={gridSize} />
       )}
 

@@ -474,3 +474,21 @@ body::after {
   overflow: hidden;
 }
 
+/* ── Flow Grid (special tabs without layout data) ── */
+
+.stash-flow-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1px;
+  background: hsl(20 8% 3%);
+  border: 2px solid hsl(var(--gold-dim));
+  border-radius: 2px;
+  padding: 2px;
+}
+
+.stash-flow-cell {
+  width: 47px;
+  height: 47px;
+  flex-shrink: 0;
+}
+
