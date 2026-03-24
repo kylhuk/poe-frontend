@@ -6,7 +6,7 @@ import PriceCheckTab from "@/components/tabs/PriceCheckTab";
 import StashViewerTab from "@/components/tabs/StashViewerTab";
 import EconomyTab from "@/components/tabs/EconomyTab";
 import MessagesTab from "@/components/tabs/MessagesTab";
-import OpportunitiesTab from "@/components/tabs/OpportunitiesTab";
+import FlipFinderTab from "@/components/tabs/FlipFinderTab";
 import DebugTrafficTab from "@/components/tabs/DebugTrafficTab";
 import { LayoutDashboard, Server, BarChart3, Search, Grid3X3, MessageSquare, TrendingUp, Bug, Coins } from "lucide-react";
 import UserMenu from "@/components/UserMenu";
