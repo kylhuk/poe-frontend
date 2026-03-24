@@ -64,9 +64,9 @@ export default function EconomyTable({ items, onItemClick, historyMap, historyLo
         case 'qty':
           return dir * ((a.stackSize ?? 1) - (b.stackSize ?? 1));
         case 'change24h': {
-          const aH = a.fingerprint && historyMap?.get(a.fingerprint)?.change24h ?? null;
-          const bH = b.fingerprint && historyMap?.get(b.fingerprint)?.change24h ?? null;
-          return dir * ((aH ?? 0) - (bH ?? 0));
+          const aH = (a.fingerprint ? historyMap?.get(a.fingerprint)?.change24h : null) ?? 0;
+          const bH = (b.fingerprint ? historyMap?.get(b.fingerprint)?.change24h : null) ?? 0;
+          return dir * (aH - bH);
         }
         default:
           return 0;
