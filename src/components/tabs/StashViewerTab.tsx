@@ -23,6 +23,13 @@ import {
 import { RenderState } from '@/components/shared/RenderState';
 import NormalGrid from '@/components/stash/NormalGrid';
 import SpecialLayoutGrid from '@/components/stash/SpecialLayoutGrid';
+import SpecialGrid from '@/components/stash/SpecialGrid';
+
+const FLOW_GRID_TYPES = new Set([
+  'currency', 'map', 'fragment', 'essence', 'divination',
+  'unique', 'delve', 'blight', 'ultimatum', 'delirium', 'metamorph',
+  'flask', 'gem',
+]);
 
 const API_SCHEMA = `{
   "scanId": "string | null",
