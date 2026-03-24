@@ -785,6 +785,7 @@ function mapPoeStashType(rawType: string): StashTab['type'] {
   const map: Record<string, StashTab['type']> = {
     QuadStash: 'quad',
     NormalStash: 'normal',
+    PremiumStash: 'normal',
     CurrencyStash: 'currency',
     FragmentStash: 'fragment',
     MapStash: 'map',
@@ -792,6 +793,12 @@ function mapPoeStashType(rawType: string): StashTab['type'] {
     DivinationCardStash: 'divination',
     UniqueStash: 'unique',
     DelveStash: 'delve',
+    FlaskStash: 'normal',
+    GemStash: 'normal',
+    BlightStash: 'blight',
+    UltimatumStash: 'ultimatum',
+    DeliriumStash: 'delirium',
+    MetamorphStash: 'metamorph',
   };
   return map[rawType] ?? (rawType as StashTab['type']) ?? 'normal';
 }
