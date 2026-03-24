@@ -41,7 +41,29 @@ export interface IngestionRow {
 
 export interface ScannerRow {
   strategy_id: string;
+  enabled: boolean;
   recommendation_count: number;
+  accepted_count: number;
+  rejected_count: number;
+  candidate_count: number;
+  top_rejection_reason: string | null;
+}
+
+export interface GateRejection {
+  decision_reason: string;
+  rejection_count: number;
+}
+
+export interface ComplexityTier {
+  complexity_tier: string | null;
+  tier_count: number;
+}
+
+export interface ScannerAnalyticsResponse {
+  latestRunId: string | null;
+  rows: ScannerRow[];
+  gateRejections: GateRejection[];
+  complexityTiers: ComplexityTier[];
 }
 
 export interface AlertRow {
