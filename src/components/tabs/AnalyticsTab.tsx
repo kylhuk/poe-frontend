@@ -100,7 +100,7 @@ function IngestionPanel() {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
       {items.map((item) => (
-        <Card key={item.strategy_id} className="card-game">
+        <Card key={item.queue_key} className="card-game">
           <CardHeader className="pb-2">
             <div className="flex items-center justify-between">
               <CardTitle className="text-sm font-sans">{item.queue_key}</CardTitle>

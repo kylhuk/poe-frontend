@@ -785,6 +785,7 @@ function mapPoeStashType(rawType: string): StashTab['type'] {
   const map: Record<string, StashTab['type']> = {
     QuadStash: 'quad',
     NormalStash: 'normal',
+    PremiumStash: 'normal',
     CurrencyStash: 'currency',
     FragmentStash: 'fragment',
     MapStash: 'map',
@@ -792,6 +793,12 @@ function mapPoeStashType(rawType: string): StashTab['type'] {
     DivinationCardStash: 'divination',
     UniqueStash: 'unique',
     DelveStash: 'delve',
+    FlaskStash: 'normal',
+    GemStash: 'normal',
+    BlightStash: 'blight',
+    UltimatumStash: 'ultimatum',
+    DeliriumStash: 'delirium',
+    MetamorphStash: 'metamorph',
   };
   return map[rawType] ?? (rawType as StashTab['type']) ?? 'normal';
 }
@@ -826,11 +833,13 @@ function normalizeStashTab(raw: unknown): StashTab {
 function normalizeTabsMeta(rawTabs: unknown[]): StashTabMeta[] {
   return rawTabs.map((entry) => {
     const t = asObject(entry);
+    const meta = asObject(t.metadata);
     return {
       id: optString(t.id) ?? '',
       tabIndex: optNumber(t.tab_index ?? t.tabIndex ?? t.index) ?? 0,
       name: optString(t.name) ?? 'Tab',
       type: optString(t.type) ?? 'NormalStash',
+      colour: optString(meta.colour as unknown) ?? undefined,
     };
   });
 }
@@ -845,10 +854,10 @@ function normalizeStashTabsResponse(payload: unknown): StashTabsResponse {
   if (source.stash && typeof source.stash === 'object' && !Array.isArray(source.stash)) {
     const tab = normalizeStashTab(source.stash);
     return {
-      scanId: null,
-      publishedAt: null,
-      isStale: false,
-      scanStatus: null,
+      scanId: optString(source.scanId ?? source.scan_id),
+      publishedAt: optString(source.publishedAt ?? source.published_at),
+      isStale: typeof source.isStale === 'boolean' ? source.isStale : Boolean(source.is_stale),
+      scanStatus: (source.scanStatus ?? source.scan_status) as StashTabsResponse['scanStatus'],
       stashTabs: [tab],
       tabsMeta,
       numTabs,
