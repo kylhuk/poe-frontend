@@ -468,6 +468,12 @@ paths:
         - in: query
           name: realm
           schema: { type: string, default: pc }
+        - in: query
+          name: tabIndex
+          schema: { type: integer, minimum: 0 }
+          description: |
+            Optional tab selector. When provided, `stash` and `items` are scoped to
+            the selected tab while `tabs` still contains the full tab list.
       responses:
         '200':
           description: Tabs payload
@@ -1094,10 +1100,17 @@ components:
         publishedAt: { type: [string, 'null'], format: date-time }
         isStale: { type: boolean }
         scanStatus: { $ref: '#/components/schemas/StashScanStatus' }
-        stashTabs:
+        stash:
+          type: [object, 'null']
+          additionalProperties: true
+        tabs:
           type: array
           items: { type: object, additionalProperties: true }
-      required: [stashTabs]
+        items:
+          type: array
+          items: { type: object, additionalProperties: true }
+        numTabs: { type: [integer, 'null'] }
+      required: [tabs, items]
 
     StashItemHistoryResponse:
       type: object
