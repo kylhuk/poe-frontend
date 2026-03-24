@@ -1,28 +1,55 @@
 
+## Findings
 
-## Fix Stash Tab Switching Being Overwritten by Polling
+I checked the live logs and the frontend is hitting the stash endpoints:
 
-### Problem
+- `/api/v1/stash/status` returns `connected_populated`, `tabCount: 19`, `itemCount: 796`
+- `/api/v1/stash/tabs?...&tabIndex=N` is being requested and returns a large payload (~968 KB)
+- `/api/v1/stash/scan/status` is currently stuck at `running` with `0/19 tabs` and `0/0 items`
 
-When clicking a different tab, `loadTab` correctly fetches and displays that tab's items. However, `loadPublished` runs every 5 seconds and also calls `api.getStashTabs(activeTabIndex)`, overwriting `activeTab` with stale data. This causes the grid to snap back or show wrong items.
+So the app is getting stash data, but the scan-status endpoint is misleading right now. Also, the logged `/stash/tabs` responses still appear to return the same stash object (`index: 0`, name `X2`) even for different `tabIndex` values, so the frontend should stop pretending tab switching worked when the backend returned a different tab.
 
-### Root Cause
+## Plan
 
-`loadPublished` does two things it shouldn't:
-1. It re-fetches the active tab's items on every poll — unnecessary since the tab data only changes on scan publish
-2. The 5-second polling interval means any tab switch gets overwritten almost immediately
+### 1. Make the Stash UI resilient to stale scan status
+Update `src/components/tabs/StashViewerTab.tsx` so scan progress is treated as secondary information, not as the source of truth for whether stash data exists.
 
-### Fix — `src/components/tabs/StashViewerTab.tsx`
+- Keep showing the last successfully loaded stash tab even while scan status says `running`
+- If stash data exists, replace the scary `0/19 · 0/0` presentation with softer copy like “Scan running — showing last available stash data”
+- If status says connected and there is no loaded tab yet, retry loading the current tab instead of only trying once on first mount
 
-**Separate status polling from tab data loading:**
+### 2. Track the tab the backend actually returned
+Update the stash types and normalizer so the frontend keeps the real returned stash index from `/api/v1/stash/tabs`.
 
-- `loadPublished` should only call `api.getStashStatus()` for scan status, published scan ID, and connection state. It should NOT call `api.getStashTabs()` or touch `activeTab`.
-- Remove `activeTabIndex` from `loadPublished`'s dependency array.
-- Initial tab load: call `loadTab(0)` once on mount (after status confirms connected).
-- Tab clicks: call `loadTab(tabIndex)` as they already do — this is the only place that fetches tab items.
-- When a scan finishes (`published` status detected), call `loadTab(activeTabIndex)` to refresh the current tab's items with the new snapshot.
+- Extend the normalized stash tab model with returned tab index
+- In `loadTab(tabIndex)`, compare requested tab vs returned tab
+- If they differ, show a clear inline warning that the backend returned a different tab than requested
 
-### Files Changed
+This prevents the UI from silently showing the first tab while the user thinks another tab is selected.
 
-- `src/components/tabs/StashViewerTab.tsx` — decouple status polling from tab data fetching
+### 3. Tighten the `/stash/tabs` normalization
+Update `src/services/api.ts` to normalize the raw tabs payload more defensively.
 
+- Preserve all `tabs[]` metadata
+- Preserve `stash.index`
+- Continue mapping PoE stash types correctly
+- Make the response handling robust even when scan metadata is null or missing
+
+### 4. Add regression tests for the real failure mode
+Update stash tests so this does not regress again.
+
+Add tests for:
+- status says scan is running with `0/19` and `0/0`, but previously loaded stash items still render
+- connected stash with no loaded tab triggers a retry load
+- backend returns tab index `0` for requested tab `N`, and the UI shows a mismatch warning instead of silently switching
+
+## Files to update
+
+- `src/components/tabs/StashViewerTab.tsx`
+- `src/services/api.ts`
+- `src/types/api.ts`
+- `src/components/tabs/StashViewerTab.test.tsx`
+
+## Technical note
+
+This plan improves the frontend behavior and makes the real backend state visible. It does not “fix” the backend if `/stash/tabs?tabIndex=N` is still returning stash index `0` for every request; instead, it makes that mismatch explicit in the UI so there are no hidden visualization bugs anymore.
