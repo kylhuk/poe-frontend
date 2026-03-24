@@ -845,10 +845,10 @@ function normalizeStashTabsResponse(payload: unknown): StashTabsResponse {
   if (source.stash && typeof source.stash === 'object' && !Array.isArray(source.stash)) {
     const tab = normalizeStashTab(source.stash);
     return {
-      scanId: null,
-      publishedAt: null,
-      isStale: false,
-      scanStatus: null,
+      scanId: optString(source.scanId ?? source.scan_id),
+      publishedAt: optString(source.publishedAt ?? source.published_at),
+      isStale: typeof source.isStale === 'boolean' ? source.isStale : Boolean(source.is_stale),
+      scanStatus: (source.scanStatus ?? source.scan_status) as StashTabsResponse['scanStatus'],
       stashTabs: [tab],
       tabsMeta,
       numTabs,
