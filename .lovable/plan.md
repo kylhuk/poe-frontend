@@ -1,65 +1,77 @@
 
 
-## Revamp Outliers into a Standalone "Opportunities" Style View
+## Enhance Economy Table with Price History, Stash Quantities, and Change %
 
-### Current State
-The pricing outliers API already returns exactly the data you need: per-item grouping with median, P10, P90, entry price, expected profit, ROI, underpriced rate, and weekly too-cheap counts. The current UI is a basic table buried in the Analytics sub-tabs with poor visual hierarchy.
+### What's available from the API
 
-### Plan
-Create a new standalone **Flip Finder** page (or replace the current Outliers sub-tab content) with a poe.ninja-inspired dense, sortable, filterable view focused on actionability.
+| Requested feature | API support | Plan |
+|---|---|---|
+| Price history sparkline (7d/24h) | YES — `GET /stash/items/{fingerprint}/history` returns timestamped price entries | Lazy-load per visible page, render inline SVG sparkline |
+| Price change % past 24h | YES — derive from history entries | Compute from history data |
+| Number in stash (stack) | YES — `stackSize` already on `PoeItem` | Add dedicated "Qty" column |
+| poe.ninja / currency exchange price | NO — no endpoint in API spec | Show "N/A" or omit; cannot implement without backend changes |
+| Trading volume | NO — no endpoint in API spec | Same — not available |
 
 ### Changes
 
-#### 1. New component: `src/components/tabs/FlipFinderTab.tsx`
+#### 1. Add `fingerprint` to `PoeItem` — `src/types/api.ts` + `src/services/api.ts`
 
-**Layout — three sections:**
+The raw items from the backend include `fingerprint` but the normalizer drops it. Preserve it so we can call the history endpoint.
 
-- **Top filter bar**: Search input, league, max buy-in slider, min sample size slider, sort dropdown, order toggle. Compact single row.
-- **Summary cards row**: 3-4 KPI cards showing: total opportunities found, best ROI item, highest profit item, average underpriced rate. Derived client-side from the response rows.
-- **Main table**: Dense, sortable, color-coded opportunity table.
+- Add `fingerprint?: string` to `PoeItem`
+- In `normalizePoeItem`, map `item.fingerprint` to the output
 
-**Table design (poe.ninja-inspired):**
-- Columns: Item Name, Entry Price, Fair Value (median), Spread (P90-P10), Expected Profit, ROI%, Underpriced Rate%, Volume/Week, Sample Size
-- ROI column: green/yellow/red color coding (>100% green, 50-100% yellow, <50% red)
-- Underpriced Rate: progress bar visual inside the cell
-- Entry Price: highlighted in gold as the "action" column
-- Row click: expands to show P10/P90 range bar, affix details, analysis level
-- Sortable by clicking column headers (client-side re-sort of the already-fetched data)
-- Sticky header
+#### 2. New sparkline component — `src/components/economy/PriceSparkline.tsx`
 
-**Weekly trend chart**: Small sparkline-style bar chart at the top showing too-cheap counts per week (already in `weekly[]` response)
+A tiny inline SVG sparkline (80×24px) showing price over time:
+- Accepts an array of `{timestamp, value}` points
+- Renders a polyline with gradient fill
+- Green if trending up, red if trending down
+- Shows "—" placeholder while loading
 
-**Behavior:**
-- Debounced API call on filter change (already implemented pattern)
-- Client-side column sorting after data arrives (no re-fetch needed)
-- Expandable rows for detail (no dialog needed)
+#### 3. Batch history fetcher — `src/services/stashCache.ts`
 
-#### 2. Register as top-level tab in `src/pages/Index.tsx`
+Add a function to fetch history for a batch of fingerprints:
+- `fetchItemHistories(fingerprints: string[]): Promise<Map<string, HistoryEntry[]>>`
+- Calls `api.getStashItemHistory(fp)` for each fingerprint sequentially (to avoid hammering the API)
+- Caches results in a module-level Map so re-renders don't re-fetch
+- Derives `change24h` percentage from the last two entries within 24h
 
-- Replace the existing "Opportunities" tab content with this new FlipFinderTab
-- Keep the same route `/opportunities` and icon
-- Visible to `member` and `admin`
+#### 4. Update `EconomyTable.tsx`
 
-#### 3. Keep existing Outliers sub-tab in Analytics
+Add new columns and integrate history data:
 
-- The Analytics > Outliers sub-tab stays as-is for admin-level raw data view
-- The new FlipFinder tab is the user-facing, actionable version
+- **Qty column**: Shows `stackSize` (or 1 if not set). Sortable.
+- **24h % column**: Color-coded percentage change. Green for positive, red for negative. Sortable.
+- **7d Sparkline column**: Inline `PriceSparkline` component. Non-sortable.
+- Remove or condense the "Eval" column to make room
+- The table component accepts an optional `historyMap` prop with pre-fetched history data
 
-#### 4. Styles in `src/index.css`
+#### 5. Update `EconomyTab.tsx`
 
-- `.flip-row`: compact 36px rows with hover highlight
-- `.roi-badge`: color-coded ROI indicator
-- `.underpriced-bar`: inline progress bar for underpriced rate
-- `.spread-bar`: visual P10-P90 range indicator
+- After items load, trigger history fetch for items on the current page (lazy — only fetch for the 50 visible items)
+- When page changes, fetch history for the new page's items
+- Pass `historyMap` down to `EconomyTable`
+- Show a subtle loading indicator on sparkline cells while fetching
+
+### New column layout
+
+```text
+# | Item | Qty | Est. Value | Listed | Δ | 24h% | 7d Chart | iLvl
+```
 
 ### Files
-- `src/components/tabs/FlipFinderTab.tsx` — new
-- `src/pages/Index.tsx` — wire up as Opportunities tab content
-- `src/index.css` — add flip-finder styles
+
+- `src/types/api.ts` — add `fingerprint` to `PoeItem`
+- `src/services/api.ts` — preserve fingerprint in normalizer
+- `src/services/stashCache.ts` — add batch history fetcher + 24h change deriver
+- `src/components/economy/PriceSparkline.tsx` — new inline SVG sparkline
+- `src/components/economy/EconomyTable.tsx` — add Qty, 24h%, sparkline columns
+- `src/components/tabs/EconomyTab.tsx` — lazy-load history per page
 
 ### Technical notes
-- No new API calls — reuses existing `getAnalyticsPricingOutliers()` 
-- Client-side sorting avoids redundant API calls when user clicks column headers
-- Filter changes still trigger the API (backend does the heavy computation)
-- Summary KPIs computed from response rows client-side
+
+- History is fetched lazily per page (50 items) to avoid loading 800+ histories at once
+- Results are cached in-memory (module-level Map) so navigating back to a page doesn't re-fetch
+- poe.ninja prices and trading volume are not available from the current backend API — these would require new backend endpoints
 
