@@ -768,6 +768,20 @@ function normalizeStashTab(raw: unknown): StashTab {
 
 function normalizeStashTabsResponse(payload: unknown): StashTabsResponse {
   const source = asObject(payload);
+
+  // New raw PoE schema: { stash: {single tab object}, tabs: [], items: [], numTabs: 0 }
+  if (source.stash && typeof source.stash === 'object' && !Array.isArray(source.stash)) {
+    const tab = normalizeStashTab(source.stash);
+    return {
+      scanId: null,
+      publishedAt: null,
+      isStale: false,
+      scanStatus: null,
+      stashTabs: [tab],
+    };
+  }
+
+  // Legacy format: { stashTabs: [...] }
   const rawTabs = Array.isArray(source.stashTabs ?? source.stash_tabs) ? (source.stashTabs ?? source.stash_tabs) as unknown[] : [];
 
   return {
