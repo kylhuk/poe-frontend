@@ -84,10 +84,16 @@ const StashViewerTab = forwardRef<HTMLDivElement, Record<string, never>>(functio
 
   const loadTab = useCallback(async (tabIndex: number) => {
     setTabLoading(true);
+    setTabMismatch(null);
     try {
       const payload = await api.getStashTabs(tabIndex);
       if (payload.stashTabs.length > 0) {
-        setActiveTab(payload.stashTabs[0]);
+        const returned = payload.stashTabs[0];
+        setActiveTab(returned);
+        // Detect mismatch: backend returned a different tab than requested
+        if (returned.returnedIndex != null && returned.returnedIndex !== tabIndex) {
+          setTabMismatch(`Requested tab index ${tabIndex}, but backend returned index ${returned.returnedIndex} ("${returned.name}")`);
+        }
       } else {
         setActiveTab(null);
       }
