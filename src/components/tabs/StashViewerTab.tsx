@@ -277,6 +277,7 @@ const StashViewerTab = forwardRef<HTMLDivElement, Record<string, never>>(functio
                 ? 'bg-gold-dim/30 text-gold-bright border-gold-dim z-10'
                 : 'bg-card text-muted-foreground border-gold-dim/30 hover:text-gold hover:bg-gold-dim/10'
             )}
+            style={t.colour ? { borderTopColor: `#${t.colour}`, borderTopWidth: 2 } : undefined}
           >
             {t.name}
             {t.type === 'QuadStash' && <span className="ml-1 text-[9px] opacity-50">(Q)</span>}
