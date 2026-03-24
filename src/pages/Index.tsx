@@ -8,7 +8,7 @@ import EconomyTab from "@/components/tabs/EconomyTab";
 import MessagesTab from "@/components/tabs/MessagesTab";
 import OpportunitiesTab from "@/components/tabs/OpportunitiesTab";
 import DebugTrafficTab from "@/components/tabs/DebugTrafficTab";
-import { LayoutDashboard, Server, BarChart3, Search, Grid3X3, MessageSquare, TrendingUp, Bug } from "lucide-react";
+import { LayoutDashboard, Server, BarChart3, Search, Grid3X3, MessageSquare, TrendingUp, Bug, Coins } from "lucide-react";
 import UserMenu from "@/components/UserMenu";
 import ApiErrorPanel from "@/components/ApiErrorPanel";
 import { useAuth, type UserRole } from "@/services/auth";
