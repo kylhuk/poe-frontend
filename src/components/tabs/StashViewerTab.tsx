@@ -66,9 +66,11 @@ function getSpecialLayout(tab: StashTab): SpecialLayout | null {
 }
 
 const StashViewerTab = forwardRef<HTMLDivElement, Record<string, never>>(function StashViewerTab(_props, ref) {
-  const [tabs, setTabs] = useState<StashTab[]>([]);
+  const [tabsMeta, setTabsMeta] = useState<StashTabMeta[]>([]);
+  const [activeTab, setActiveTab] = useState<StashTab | null>(null);
+  const [activeTabIndex, setActiveTabIndex] = useState(0);
+  const [tabLoading, setTabLoading] = useState(false);
   const [status, setStatus] = useState<StashStatus['status'] | 'loading' | 'degraded'>('loading');
-  const [activeTab, setActiveTab] = useState(0);
   const [schemaOpen, setSchemaOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [publishedScanId, setPublishedScanId] = useState<string | null>(null);
@@ -79,6 +81,26 @@ const StashViewerTab = forwardRef<HTMLDivElement, Record<string, never>>(functio
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyPayload, setHistoryPayload] = useState<StashItemHistoryResponse | null>(null);
 
+  const loadTab = useCallback(async (tabIndex: number) => {
+    setTabLoading(true);
+    try {
+      const payload = await api.getStashTabs(tabIndex);
+      if (payload.stashTabs.length > 0) {
+        setActiveTab(payload.stashTabs[0]);
+      } else {
+        setActiveTab(null);
+      }
+      // Update tabsMeta if returned (first load or refresh)
+      if (payload.tabsMeta.length > 0) {
+        setTabsMeta(payload.tabsMeta);
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to load tab');
+    } finally {
+      setTabLoading(false);
+    }
+  }, []);
+
   const loadPublished = useCallback(async () => {
     const stashStatus = await api.getStashStatus();
     setStatus(stashStatus.status);
@@ -86,20 +108,24 @@ const StashViewerTab = forwardRef<HTMLDivElement, Record<string, never>>(functio
     setPublishedAt(stashStatus.publishedAt ?? null);
     setScanStatus(stashStatus.scanStatus ?? EMPTY_SCAN_STATUS);
     if (stashStatus.connected) {
-      const payload = await api.getStashTabs();
-      setTabs(payload.stashTabs);
+      const payload = await api.getStashTabs(activeTabIndex);
+      if (payload.tabsMeta.length > 0) {
+        setTabsMeta(payload.tabsMeta);
+      }
+      if (payload.stashTabs.length > 0) {
+        setActiveTab(payload.stashTabs[0]);
+      }
       setPublishedScanId(payload.scanId ?? stashStatus.publishedScanId ?? null);
       setPublishedAt(payload.publishedAt ?? stashStatus.publishedAt ?? null);
       if (payload.scanStatus) {
         setScanStatus(payload.scanStatus);
       }
-      setActiveTab((current) => (payload.stashTabs[current] ? current : 0));
     } else {
-      setTabs([]);
-      setActiveTab(0);
+      setActiveTab(null);
+      setTabsMeta([]);
     }
     setError(null);
-  }, []);
+  }, [activeTabIndex]);
 
   useEffect(() => {
     loadPublished().catch((err: unknown) => {
