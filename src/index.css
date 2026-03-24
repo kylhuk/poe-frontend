@@ -492,3 +492,39 @@ body::after {
   flex-shrink: 0;
 }
 
+/* ── Economy Browser ─────────────────────────── */
+
+.economy-row {
+  height: 40px;
+  cursor: pointer;
+  transition: background 0.15s ease, box-shadow 0.15s ease;
+  border-bottom: 1px solid hsl(var(--border));
+}
+
+.economy-row:hover {
+  background: hsl(var(--muted));
+  box-shadow: inset 0 0 0 1px hsl(var(--gold) / 0.15);
+}
+
+.economy-sidebar-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.375rem 0.5rem;
+  border-radius: 0.25rem;
+  font-size: 0.75rem;
+  color: hsl(var(--foreground));
+  transition: background 0.15s ease, border-color 0.15s ease;
+  border: 1px solid transparent;
+}
+
+.economy-sidebar-item:hover {
+  background: hsl(var(--muted));
+}
+
+.economy-sidebar-item-active {
+  background: hsl(var(--muted));
+  border-color: hsl(var(--gold) / 0.5);
+  color: hsl(var(--gold-bright));
+}
+

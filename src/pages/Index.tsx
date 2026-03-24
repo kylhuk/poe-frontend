@@ -66,6 +66,13 @@ const makeTabs = (subtab?: string, onSubtabChange?: (s: string) => void): TabDef
     roles: ["member", "admin"],
   },
   {
+    id: "economy",
+    label: "Economy",
+    icon: <Coins className="h-3.5 w-3.5" />,
+    content: <EconomyTab />,
+    roles: ["member", "admin"],
+  },
+  {
     id: "messages",
     label: "Messages",
     icon: <MessageSquare className="h-3.5 w-3.5" />,
