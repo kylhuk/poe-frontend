@@ -270,7 +270,8 @@ const StashViewerTab = forwardRef<HTMLDivElement, Record<string, never>>(functio
       {!error && status === 'disconnected' && <RenderState kind="disconnected" message="Connect account to view stash" />}
       {!error && status === 'session_expired' && <RenderState kind="session_expired" message="Session expired, login again" />}
       {!error && status === 'feature_unavailable' && <RenderState kind="feature_unavailable" message="Stash feature unavailable" />}
-      {!error && tabs.length === 0 && status === 'connected_empty' && <RenderState kind="empty" message="Connected but stash is empty" />}
+      {!error && tabsMeta.length === 0 && !tab && status === 'connected_empty' && <RenderState kind="empty" message="Connected but stash is empty" />}
+      {tabLoading && <RenderState kind="loading" message="Loading tab..." />}
       {/* Grid / Special layout rendering */}
       {tab && specialLayout && (
         <SpecialLayoutGrid items={tab.items} layout={specialLayout} />
