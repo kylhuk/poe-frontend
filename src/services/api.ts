@@ -1183,10 +1183,11 @@ export const api: ApiService = {
     return normalizeMlPredictOneResponse(payload);
   },
 
-  async getStashTabs() {
+  async getStashTabs(tabIndex?: number) {
     const league = await primaryLeague();
+    const tabParam = tabIndex != null ? `&tabIndex=${tabIndex}` : '';
     const payload = await request<unknown>(
-      `/api/v1/stash/tabs?league=${encodeURIComponent(league)}&realm=pc`
+      `/api/v1/stash/tabs?league=${encodeURIComponent(league)}&realm=pc${tabParam}`
     );
     return normalizeStashTabsResponse(payload);
   },

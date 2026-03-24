@@ -614,6 +614,6 @@ export interface ApiService {
   startStashScan(): Promise<StashScanStartResponse>;
   getStashScanStatus(): Promise<StashScanStatus>;
   getStashItemHistory(fingerprint: string): Promise<StashItemHistoryResponse>;
-  getStashTabs(): Promise<StashTabsResponse>;
+  getStashTabs(tabIndex?: number): Promise<StashTabsResponse>;
   getMessages(): Promise<AppMessage[]>;
 }
