@@ -128,7 +128,9 @@ Deno.serve(async (req) => {
 
     // Debug traffic capture — enabled via x-debug-capture header or for all stash routes
     const debugCapture = req.headers.get("x-debug-capture") === "1" ||
-      /^\/api\/v1\/stash\//.test(proxyPath);
+      /^\/api\/v1\/stash\//.test(proxyPath) ||
+      /^\/api\/v1\/ops\/scanner\//.test(proxyPath) ||
+      /^\/api\/v1\/ops\/analytics\/(scanner|opportunities)/.test(proxyPath);
 
     const responseHeaders = new Headers(corsHeaders);
     responseHeaders.set("Content-Type", backendRes.headers.get("Content-Type") || "application/json");
