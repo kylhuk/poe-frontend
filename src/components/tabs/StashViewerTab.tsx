@@ -160,7 +160,7 @@ const StashViewerTab = forwardRef<HTMLDivElement, Record<string, never>>(functio
       }
     }, 1500);
     return () => window.clearInterval(timer);
-  }, [scanBusy, loadPublished]);
+  }, [scanBusy, loadTab, activeTabIndex]);
 
   const startScan = useCallback(async () => {
     try {
