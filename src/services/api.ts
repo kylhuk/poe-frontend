@@ -27,7 +27,10 @@ import type {
   StashScanStartResponse,
   StashScanStatus,
   StashStatus,
+  StashTabMeta,
   StashTabsResponse,
+  PoeItem,
+  StashTab,
 } from '@/types/api';
 
 export interface IngestionRow {
@@ -39,19 +42,29 @@ export interface IngestionRow {
 
 export interface ScannerRow {
   strategy_id: string;
+  enabled: boolean;
   recommendation_count: number;
-  enabled?: boolean;
-  accepted_count?: number;
-  rejected_count?: number;
-  candidate_count?: number;
-  top_rejection_reason?: string | null;
+  accepted_count: number;
+  rejected_count: number;
+  candidate_count: number;
+  top_rejection_reason: string | null;
+}
+
+export interface GateRejection {
+  decision_reason: string;
+  rejection_count: number;
+}
+
+export interface ComplexityTier {
+  complexity_tier: string | null;
+  tier_count: number;
 }
 
 export interface ScannerAnalyticsResponse {
-  latestRunId?: string | null;
+  latestRunId: string | null;
   rows: ScannerRow[];
-  gateRejections?: Array<{ decision_reason: string; rejection_count: number }>;
-  complexityTiers?: Array<{ complexity_tier: string; tier_count: number }>;
+  gateRejections: GateRejection[];
+  complexityTiers: ComplexityTier[];
 }
 
 export interface AlertRow {
@@ -280,7 +293,41 @@ export async function getAnalyticsIngestion() {
 }
 
 export async function getAnalyticsScanner() {
-  return request<ScannerAnalyticsResponse>('/api/v1/ops/analytics/scanner');
+  const payload = await request<unknown>('/api/v1/ops/analytics/scanner');
+  const source = asObject(payload);
+  const rawRows = Array.isArray(source.rows) ? source.rows : [];
+  const rawGateRejections = Array.isArray(source.gateRejections) ? source.gateRejections : [];
+  const rawComplexityTiers = Array.isArray(source.complexityTiers) ? source.complexityTiers : [];
+
+  return {
+    latestRunId: optString(source.latestRunId),
+    rows: rawRows.map((entry) => {
+      const row = asObject(entry);
+      return {
+        strategy_id: optString(row.strategy_id ?? row.strategyId) ?? 'unknown',
+        enabled: typeof row.enabled === 'boolean' ? row.enabled : false,
+        recommendation_count: optNumber(row.recommendation_count ?? row.recommendationCount) ?? 0,
+        accepted_count: optNumber(row.accepted_count ?? row.acceptedCount) ?? 0,
+        rejected_count: optNumber(row.rejected_count ?? row.rejectedCount) ?? 0,
+        candidate_count: optNumber(row.candidate_count ?? row.candidateCount) ?? 0,
+        top_rejection_reason: optString(row.top_rejection_reason ?? row.topRejectionReason),
+      };
+    }),
+    gateRejections: rawGateRejections.map((entry) => {
+      const row = asObject(entry);
+      return {
+        decision_reason: optString(row.decision_reason ?? row.decisionReason) ?? 'unknown',
+        rejection_count: optNumber(row.rejection_count ?? row.rejectionCount) ?? 0,
+      };
+    }),
+    complexityTiers: rawComplexityTiers.map((entry) => {
+      const row = asObject(entry);
+      return {
+        complexity_tier: optString(row.complexity_tier ?? row.complexityTier),
+        tier_count: optNumber(row.tier_count ?? row.tierCount) ?? 0,
+      };
+    }),
+  };
 }
 
 export async function getAnalyticsAlerts() {
@@ -676,6 +723,152 @@ function normalizePricingOutliersResponse(payload: unknown): PricingOutliersResp
   };
 }
 
+function frameTypeFromRarity(value: unknown): number {
+  switch (value) {
+    case 'magic':
+      return 1;
+    case 'rare':
+      return 2;
+    case 'unique':
+      return 3;
+    default:
+      return 0;
+  }
+}
+
+function normalizePoeItem(raw: unknown): PoeItem {
+  const item = asObject(raw);
+  const name = optString(item.name) ?? '';
+  const typeLine = optString(item.typeLine ?? item.type_line ?? item.itemClass ?? item.item_class) ?? name;
+  const iconUrl = optString(item.icon ?? item.iconUrl ?? item.icon_url) ?? '';
+
+  return {
+    id: optString(item.id) ?? crypto.randomUUID(),
+    name,
+    typeLine,
+    baseType: optString(item.baseType ?? item.base_type) ?? undefined,
+    icon: iconUrl,
+    iconUrl: iconUrl || undefined,
+    x: optNumber(item.x) ?? 0,
+    y: optNumber(item.y) ?? 0,
+    w: optNumber(item.w) ?? 1,
+    h: optNumber(item.h) ?? 1,
+    frameType: optNumber(item.frameType ?? item.frame_type) ?? frameTypeFromRarity(item.rarity),
+    stackSize: optNumber(item.stackSize ?? item.stack_size) ?? undefined,
+    maxStackSize: optNumber(item.maxStackSize ?? item.max_stack_size) ?? undefined,
+    ilvl: optNumber(item.ilvl) ?? undefined,
+    identified: typeof item.identified === 'boolean' ? item.identified : undefined,
+    corrupted: typeof item.corrupted === 'boolean' ? item.corrupted : undefined,
+    duplicated: typeof item.duplicated === 'boolean' ? item.duplicated : undefined,
+    properties: Array.isArray(item.properties) ? item.properties as PoeItem['properties'] : undefined,
+    requirements: Array.isArray(item.requirements) ? item.requirements as PoeItem['requirements'] : undefined,
+    implicitMods: Array.isArray(item.implicitMods ?? item.implicit_mods) ? (item.implicitMods ?? item.implicit_mods) as string[] : undefined,
+    explicitMods: Array.isArray(item.explicitMods ?? item.explicit_mods) ? (item.explicitMods ?? item.explicit_mods) as string[] : undefined,
+    craftedMods: Array.isArray(item.craftedMods ?? item.crafted_mods) ? (item.craftedMods ?? item.crafted_mods) as string[] : undefined,
+    enchantMods: Array.isArray(item.enchantMods ?? item.enchant_mods) ? (item.enchantMods ?? item.enchant_mods) as string[] : undefined,
+    fracturedMods: Array.isArray(item.fracturedMods ?? item.fractured_mods) ? (item.fracturedMods ?? item.fractured_mods) as string[] : undefined,
+    utilityMods: Array.isArray(item.utilityMods ?? item.utility_mods) ? (item.utilityMods ?? item.utility_mods) as string[] : undefined,
+    descrText: optString(item.descrText ?? item.descr_text) ?? undefined,
+    flavourText: Array.isArray(item.flavourText ?? item.flavour_text) ? (item.flavourText ?? item.flavour_text) as string[] : undefined,
+    sockets: Array.isArray(item.sockets) ? item.sockets as PoeItem['sockets'] : undefined,
+    listedPrice: optNumber(item.listedPrice ?? item.listed_price),
+    estimatedPrice: optNumber(item.estimatedPrice ?? item.estimated_price),
+    estimatedPriceConfidence: optNumber(item.estimatedPriceConfidence ?? item.estimated_price_confidence),
+    priceDeltaChaos: optNumber(item.priceDeltaChaos ?? item.price_delta_chaos),
+    priceDeltaPercent: optNumber(item.priceDeltaPercent ?? item.price_delta_percent),
+    priceEvaluation: optString(item.priceEvaluation ?? item.price_evaluation) as PoeItem['priceEvaluation'],
+    currency: optString(item.currency) ?? undefined,
+  };
+}
+
+function mapPoeStashType(rawType: string): StashTab['type'] {
+  const map: Record<string, StashTab['type']> = {
+    QuadStash: 'quad',
+    NormalStash: 'normal',
+    CurrencyStash: 'currency',
+    FragmentStash: 'fragment',
+    MapStash: 'map',
+    EssenceStash: 'essence',
+    DivinationCardStash: 'divination',
+    UniqueStash: 'unique',
+    DelveStash: 'delve',
+  };
+  return map[rawType] ?? (rawType as StashTab['type']) ?? 'normal';
+}
+
+function normalizeStashTab(raw: unknown): StashTab {
+  const tab = asObject(raw);
+  const rawItems = Array.isArray(tab.items) ? tab.items : [];
+  const rawType = optString(tab.type) ?? 'normal';
+  const mappedType = mapPoeStashType(rawType);
+
+  return {
+    id: optString(tab.id) ?? crypto.randomUUID(),
+    name: optString(tab.name) ?? 'Tab',
+    type: mappedType,
+    returnedIndex: optNumber(tab.index ?? tab.tabIndex ?? tab.tab_index),
+    items: rawItems.map(normalizePoeItem),
+    quadLayout: mappedType === 'quad' || (typeof tab.quadLayout === 'boolean' ? tab.quadLayout : Boolean(tab.quad_layout)),
+    currencyLayout: (tab.currencyLayout ?? tab.currency_layout) as StashTab['currencyLayout'],
+    fragmentLayout: (tab.fragmentLayout ?? tab.fragment_layout) as StashTab['fragmentLayout'],
+    essenceLayout: (tab.essenceLayout ?? tab.essence_layout) as StashTab['essenceLayout'],
+    deliriumLayout: (tab.deliriumLayout ?? tab.delirium_layout) as StashTab['deliriumLayout'],
+    blightLayout: (tab.blightLayout ?? tab.blight_layout) as StashTab['blightLayout'],
+    ultimatumLayout: (tab.ultimatumLayout ?? tab.ultimatum_layout) as StashTab['ultimatumLayout'],
+    mapLayout: (tab.mapLayout ?? tab.map_layout) as StashTab['mapLayout'],
+    divinationLayout: (tab.divinationLayout ?? tab.divination_layout) as StashTab['divinationLayout'],
+    uniqueLayout: (tab.uniqueLayout ?? tab.unique_layout) as StashTab['uniqueLayout'],
+    delveLayout: (tab.delveLayout ?? tab.delve_layout) as StashTab['delveLayout'],
+    metamorphLayout: (tab.metamorphLayout ?? tab.metamorph_layout) as StashTab['metamorphLayout'],
+  };
+}
+
+function normalizeTabsMeta(rawTabs: unknown[]): StashTabMeta[] {
+  return rawTabs.map((entry) => {
+    const t = asObject(entry);
+    return {
+      id: optString(t.id) ?? '',
+      tabIndex: optNumber(t.tab_index ?? t.tabIndex ?? t.index) ?? 0,
+      name: optString(t.name) ?? 'Tab',
+      type: optString(t.type) ?? 'NormalStash',
+    };
+  });
+}
+
+function normalizeStashTabsResponse(payload: unknown): StashTabsResponse {
+  const source = asObject(payload);
+  const rawTabsMeta = Array.isArray(source.tabs) ? source.tabs as unknown[] : [];
+  const tabsMeta = normalizeTabsMeta(rawTabsMeta);
+  const numTabs = optNumber(source.numTabs ?? source.num_tabs) ?? tabsMeta.length;
+
+  // New raw PoE schema: { stash: {single tab object}, tabs: [...], numTabs }
+  if (source.stash && typeof source.stash === 'object' && !Array.isArray(source.stash)) {
+    const tab = normalizeStashTab(source.stash);
+    return {
+      scanId: null,
+      publishedAt: null,
+      isStale: false,
+      scanStatus: null,
+      stashTabs: [tab],
+      tabsMeta,
+      numTabs,
+    };
+  }
+
+  // Legacy format: { stashTabs: [...] }
+  const rawTabs = Array.isArray(source.stashTabs ?? source.stash_tabs) ? (source.stashTabs ?? source.stash_tabs) as unknown[] : [];
+
+  return {
+    scanId: optString(source.scanId ?? source.scan_id),
+    publishedAt: optString(source.publishedAt ?? source.published_at),
+    isStale: typeof source.isStale === 'boolean' ? source.isStale : Boolean(source.is_stale),
+    scanStatus: (source.scanStatus ?? source.scan_status) as StashTabsResponse['scanStatus'],
+    stashTabs: rawTabs.map(normalizeStashTab),
+    tabsMeta,
+    numTabs,
+  };
+}
+
 export async function getAnalyticsSearchSuggestions(query: string) {
   const queryString = buildQueryString({ query });
   return request<SearchSuggestionsResponse>(`/api/v1/ops/analytics/search-suggestions${queryString}`);
@@ -1019,12 +1212,13 @@ export const api: ApiService = {
     return normalizeMlPredictOneResponse(payload);
   },
 
-  async getStashTabs() {
+  async getStashTabs(tabIndex?: number) {
     const league = await primaryLeague();
-    const payload = await request<StashTabsResponse>(
-      `/api/v1/stash/tabs?league=${encodeURIComponent(league)}&realm=pc`
+    const tabParam = tabIndex != null ? `&tabIndex=${tabIndex}` : '';
+    const payload = await request<unknown>(
+      `/api/v1/stash/tabs?league=${encodeURIComponent(league)}&realm=pc${tabParam}`
     );
-    return payload;
+    return normalizeStashTabsResponse(payload);
   },
 
   async getMessages() {

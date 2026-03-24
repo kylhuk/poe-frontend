@@ -10,6 +10,7 @@ import type {
   StashScanStatus,
   StashStatus,
   StashTab,
+  StashTabMeta,
   PriceEvaluation,
   SpecialLayout,
 } from '@/types/api';
@@ -65,9 +66,12 @@ function getSpecialLayout(tab: StashTab): SpecialLayout | null {
 }
 
 const StashViewerTab = forwardRef<HTMLDivElement, Record<string, never>>(function StashViewerTab(_props, ref) {
-  const [tabs, setTabs] = useState<StashTab[]>([]);
+  const [tabsMeta, setTabsMeta] = useState<StashTabMeta[]>([]);
+  const [activeTab, setActiveTab] = useState<StashTab | null>(null);
+  const [activeTabIndex, setActiveTabIndex] = useState(0);
+  const [tabLoading, setTabLoading] = useState(false);
+  const [tabMismatch, setTabMismatch] = useState<string | null>(null);
   const [status, setStatus] = useState<StashStatus['status'] | 'loading' | 'degraded'>('loading');
-  const [activeTab, setActiveTab] = useState(0);
   const [schemaOpen, setSchemaOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [publishedScanId, setPublishedScanId] = useState<string | null>(null);
@@ -78,34 +82,63 @@ const StashViewerTab = forwardRef<HTMLDivElement, Record<string, never>>(functio
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyPayload, setHistoryPayload] = useState<StashItemHistoryResponse | null>(null);
 
-  const loadPublished = useCallback(async () => {
+  const loadTab = useCallback(async (tabIndex: number) => {
+    setTabLoading(true);
+    setTabMismatch(null);
+    try {
+      const payload = await api.getStashTabs(tabIndex);
+      if (payload.stashTabs.length > 0) {
+        const returned = payload.stashTabs[0];
+        setActiveTab(returned);
+        // Detect mismatch: backend returned a different tab than requested
+        if (returned.returnedIndex != null && returned.returnedIndex !== tabIndex) {
+          setTabMismatch(`Requested tab index ${tabIndex}, but backend returned index ${returned.returnedIndex} ("${returned.name}")`);
+        }
+      } else {
+        setActiveTab(null);
+      }
+      // Update tabsMeta if returned (first load or refresh)
+      if (payload.tabsMeta.length > 0) {
+        setTabsMeta(payload.tabsMeta);
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to load tab');
+    } finally {
+      setTabLoading(false);
+    }
+  }, []);
+
+  const pollStatus = useCallback(async () => {
     const stashStatus = await api.getStashStatus();
     setStatus(stashStatus.status);
     setPublishedScanId(stashStatus.publishedScanId ?? null);
     setPublishedAt(stashStatus.publishedAt ?? null);
     setScanStatus(stashStatus.scanStatus ?? EMPTY_SCAN_STATUS);
-    if (stashStatus.connected) {
-      const payload = await api.getStashTabs();
-      setTabs(payload.stashTabs);
-      setPublishedScanId(payload.scanId ?? stashStatus.publishedScanId ?? null);
-      setPublishedAt(payload.publishedAt ?? stashStatus.publishedAt ?? null);
-      if (payload.scanStatus) {
-        setScanStatus(payload.scanStatus);
-      }
-      setActiveTab((current) => (payload.stashTabs[current] ? current : 0));
-    } else {
-      setTabs([]);
-      setActiveTab(0);
+    if (!stashStatus.connected) {
+      setActiveTab(null);
+      setTabsMeta([]);
     }
     setError(null);
+    return stashStatus;
   }, []);
 
+  const initialLoadDone = React.useRef(false);
+
   useEffect(() => {
-    loadPublished().catch((err: unknown) => {
-      setError(err instanceof Error ? err.message : 'Stash feature unavailable');
-      setStatus('degraded');
-    });
-  }, [loadPublished]);
+    if (initialLoadDone.current) return;
+    initialLoadDone.current = true;
+    (async () => {
+      try {
+        const stashStatus = await pollStatus();
+        if (stashStatus.connected) {
+          await loadTab(0);
+        }
+      } catch (err: unknown) {
+        setError(err instanceof Error ? err.message : 'Stash feature unavailable');
+        setStatus('degraded');
+      }
+    })();
+  }, [pollStatus, loadTab]);
 
   useEffect(() => {
     if (!scanBusy) {
@@ -118,7 +151,7 @@ const StashViewerTab = forwardRef<HTMLDivElement, Record<string, never>>(functio
         if (next.status === 'published') {
           window.clearInterval(timer);
           setScanBusy(false);
-          await loadPublished();
+          await loadTab(activeTabIndex);
         }
         if (next.status === 'failed') {
           window.clearInterval(timer);
@@ -134,7 +167,7 @@ const StashViewerTab = forwardRef<HTMLDivElement, Record<string, never>>(functio
       }
     }, 1500);
     return () => window.clearInterval(timer);
-  }, [scanBusy, loadPublished]);
+  }, [scanBusy, loadTab, activeTabIndex]);
 
   const startScan = useCallback(async () => {
     try {
@@ -171,20 +204,36 @@ const StashViewerTab = forwardRef<HTMLDivElement, Record<string, never>>(functio
     }
   }, []);
 
+  const activeTabRef = React.useRef(activeTab);
+  activeTabRef.current = activeTab;
+  const activeTabIndexRef = React.useRef(activeTabIndex);
+  activeTabIndexRef.current = activeTabIndex;
+
   useEffect(() => {
-    const iv = window.setInterval(() => {
-      loadPublished().catch((err: unknown) => {
+    const iv = window.setInterval(async () => {
+      try {
+        const st = await pollStatus();
+        // If connected but no tab loaded yet, retry loading
+        if (st.connected && !activeTabRef.current) {
+          await loadTab(activeTabIndexRef.current);
+        }
+      } catch (err: unknown) {
         setError(err instanceof Error ? err.message : 'Stash feature unavailable');
         setStatus('degraded');
-      });
+      }
     }, 5_000);
     return () => clearInterval(iv);
-  }, [loadPublished]);
+  }, [pollStatus, loadTab]);
 
-  const tab = tabs[activeTab];
+  const tab = activeTab;
   const specialLayout = tab ? getSpecialLayout(tab) : null;
   const isGrid = tab && !specialLayout;
-  const gridSize = tab?.quadLayout ? 24 : 12;
+  const gridSize = (() => {
+    if (!tab) return 12;
+    if (tab.quadLayout || tab.type === 'quad') return 24;
+    const maxCoord = tab.items.reduce((max, item) => Math.max(max, item.x + item.w, item.y + item.h), 0);
+    return maxCoord > 12 ? 24 : 12;
+  })();
   const runningScan = scanBusy || scanStatus.status === 'running' || scanStatus.status === 'publishing';
 
   return (
@@ -200,7 +249,9 @@ const StashViewerTab = forwardRef<HTMLDivElement, Record<string, never>>(functio
             <p className="text-xs text-muted-foreground">
               {scanStatus.status === 'failed'
                 ? `Last scan failed${scanStatus.error ? `: ${scanStatus.error}` : ''}`
-                : `Scan ${scanStatus.status}: ${scanStatus.progress.tabsProcessed}/${scanStatus.progress.tabsTotal} tabs · ${scanStatus.progress.itemsProcessed}/${scanStatus.progress.itemsTotal} items`}
+                : tab
+                  ? `Scan ${scanStatus.status} — showing last available stash data`
+                  : `Scan ${scanStatus.status}: ${scanStatus.progress.tabsProcessed}/${scanStatus.progress.tabsTotal} tabs · ${scanStatus.progress.itemsProcessed}/${scanStatus.progress.itemsTotal} items`}
             </p>
           )}
         </div>
@@ -210,22 +261,25 @@ const StashViewerTab = forwardRef<HTMLDivElement, Record<string, never>>(functio
         </Button>
       </div>
 
-      <div className="flex items-end gap-0">
-        {tabs.map((t, i) => (
+      <div className="flex items-end gap-0 flex-wrap">
+        {tabsMeta.map((t, i) => (
           <button
             type="button"
             data-testid={`stash-tab-${t.id}`}
             key={t.id}
-            onClick={() => setActiveTab(i)}
+            onClick={() => {
+              setActiveTabIndex(t.tabIndex);
+              loadTab(t.tabIndex);
+            }}
             className={cn(
               'px-4 py-1.5 text-xs font-display tracking-wide border border-b-0 transition-all relative -mb-px',
-              i === activeTab
+              t.tabIndex === activeTabIndex
                 ? 'bg-gold-dim/30 text-gold-bright border-gold-dim z-10'
                 : 'bg-card text-muted-foreground border-gold-dim/30 hover:text-gold hover:bg-gold-dim/10'
             )}
           >
             {t.name}
-            {t.type === 'quad' && <span className="ml-1 text-[9px] opacity-50">(Q)</span>}
+            {t.type === 'QuadStash' && <span className="ml-1 text-[9px] opacity-50">(Q)</span>}
           </button>
         ))}
       </div>
@@ -235,7 +289,13 @@ const StashViewerTab = forwardRef<HTMLDivElement, Record<string, never>>(functio
       {!error && status === 'disconnected' && <RenderState kind="disconnected" message="Connect account to view stash" />}
       {!error && status === 'session_expired' && <RenderState kind="session_expired" message="Session expired, login again" />}
       {!error && status === 'feature_unavailable' && <RenderState kind="feature_unavailable" message="Stash feature unavailable" />}
-      {!error && tabs.length === 0 && status === 'connected_empty' && <RenderState kind="empty" message="Connected but stash is empty" />}
+      {!error && tabsMeta.length === 0 && !tab && status === 'connected_empty' && <RenderState kind="empty" message="Connected but stash is empty" />}
+      {tabLoading && <RenderState kind="loading" message="Loading tab..." />}
+      {tabMismatch && (
+        <div className="rounded border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-warning" data-testid="tab-mismatch-warning">
+          ⚠ {tabMismatch}
+        </div>
+      )}
       {/* Grid / Special layout rendering */}
       {tab && specialLayout && (
         <SpecialLayoutGrid items={tab.items} layout={specialLayout} />

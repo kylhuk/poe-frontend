@@ -5,6 +5,35 @@ import { buildForwardHeaders, getCorsHeaders } from "./contract.ts";
 
 const API_BASE = "https://api.poe.lama-lan.ch";
 
+// Debug: save request/response to debug_traffic table
+async function captureTraffic(
+  method: string,
+  path: string,
+  reqHeaders: Record<string, string>,
+  reqBody: string | undefined,
+  resStatus: number,
+  resHeaders: Record<string, string>,
+  resBody: string,
+) {
+  try {
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const sb = createClient(supabaseUrl, serviceRoleKey);
+    await sb.from("debug_traffic").insert({
+      method,
+      path,
+      request_headers: reqHeaders,
+      request_body: reqBody ?? null,
+      response_status: resStatus,
+      response_headers: resHeaders,
+      response_body: resBody,
+    });
+    console.log(`[api-proxy] DEBUG captured ${method} ${path} (${resBody.length} bytes)`);
+  } catch (e) {
+    console.error(`[api-proxy] DEBUG capture failed:`, e);
+  }
+}
+
 Deno.serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
 
@@ -97,6 +126,12 @@ Deno.serve(async (req) => {
 
     console.log(`[api-proxy] backend responded ${backendRes.status}`);
 
+    // Debug traffic capture — enabled via x-debug-capture header or for all stash routes
+    const debugCapture = req.headers.get("x-debug-capture") === "1" ||
+      /^\/api\/v1\/stash\//.test(proxyPath) ||
+      /^\/api\/v1\/ops\/scanner\//.test(proxyPath) ||
+      /^\/api\/v1\/ops\/analytics\/(scanner|opportunities)/.test(proxyPath);
+
     const responseHeaders = new Headers(corsHeaders);
     responseHeaders.set("Content-Type", backendRes.headers.get("Content-Type") || "application/json");
 
@@ -107,6 +142,17 @@ Deno.serve(async (req) => {
     }
 
     const responseBody = await backendRes.arrayBuffer();
+
+    // Fire-and-forget: capture traffic in background if debug is on
+    if (debugCapture) {
+      const bodyText = new TextDecoder().decode(responseBody);
+      const fwdHeadersObj: Record<string, string> = {};
+      for (const [k, v] of Object.entries(forwardHeaders)) fwdHeadersObj[k] = v;
+      const resHeadersObj: Record<string, string> = {};
+      backendRes.headers.forEach((v, k) => resHeadersObj[k] = v);
+      captureTraffic(req.method, proxyPath, fwdHeadersObj, body, backendRes.status, resHeadersObj, bodyText);
+    }
+
     return new Response(responseBody, {
       status: backendRes.status,
       headers: responseHeaders,

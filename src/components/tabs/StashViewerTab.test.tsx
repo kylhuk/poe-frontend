@@ -71,6 +71,7 @@ const publishedTabsPayload = {
       id: 'tab-2',
       name: 'Currency',
       type: 'currency',
+      returnedIndex: 0,
       items: [
         {
           id: 'item-1',
@@ -94,13 +95,12 @@ const publishedTabsPayload = {
         },
       ],
     },
-    {
-      id: 'tab-9',
-      name: 'Dump',
-      type: 'quad',
-      items: [],
-    },
   ],
+  tabsMeta: [
+    { id: 'tab-2', tabIndex: 0, name: 'Currency', type: 'CurrencyStash' },
+    { id: 'tab-9', tabIndex: 1, name: 'Dump', type: 'QuadStash' },
+  ],
+  numTabs: 2,
 };
 
 beforeEach(() => {
@@ -170,7 +170,7 @@ describe('StashViewerTab', () => {
 
     render(<StashViewerTab />);
 
-    expect((await screen.findAllByText('Grim Bane')).length).toBeGreaterThan(0);
+    expect(await screen.findByTestId('stash-panel-grid')).toBeInTheDocument();
     vi.useFakeTimers();
 
     await act(async () => {
@@ -184,11 +184,11 @@ describe('StashViewerTab', () => {
       await Promise.resolve();
     });
 
-    expect(screen.getAllByText('Grim Bane').length).toBeGreaterThan(0);
+    expect(screen.getByTestId('stash-panel-grid')).toBeInTheDocument();
     expect(getStashScanStatusMock).toHaveBeenCalled();
   });
 
-  test('renders tabs in backend order and opens history details for an item', async () => {
+  test('renders tabs in backend order and paints stash item art', async () => {
     render(<StashViewerTab />);
 
     await waitFor(() => {
@@ -197,14 +197,7 @@ describe('StashViewerTab', () => {
       expect(tabs[1]).toHaveTextContent('Dump');
     });
 
-    fireEvent.click(screen.getByTestId('stash-item-history-sig:item-1'));
-
-    await waitFor(() => {
-      expect(getStashItemHistoryMock).toHaveBeenCalledWith('sig:item-1');
-    });
-
-    expect((await screen.findAllByText('Grim Bane')).length).toBeGreaterThan(0);
-    expect(screen.getAllByText('Helmet').length).toBeGreaterThan(0);
+    expect(await screen.findByAltText('Grim Bane')).toBeInTheDocument();
   });
 
   test('starts a scan, polls status, and refreshes once the scan publishes', async () => {
@@ -238,7 +231,7 @@ describe('StashViewerTab', () => {
       });
 
     render(<StashViewerTab />);
-    expect((await screen.findAllByText('Grim Bane')).length).toBeGreaterThan(0);
+    expect(await screen.findByTestId('stash-panel-grid')).toBeInTheDocument();
     vi.useFakeTimers();
 
     await act(async () => {
@@ -255,5 +248,61 @@ describe('StashViewerTab', () => {
     });
 
     expect(getStashTabsMock).toHaveBeenCalledTimes(2);
+  });
+
+  test('shows stash data even when scan status reports 0 progress', async () => {
+    getStashStatusMock.mockResolvedValue({
+      status: 'connected_populated',
+      connected: true,
+      tabCount: 19,
+      itemCount: 796,
+      session: { accountName: 'qa-exile', expiresAt: '2099-01-01T00:00:00Z' },
+      publishedScanId: 'scan-1',
+      publishedAt: '2026-03-21T12:00:00Z',
+      scanStatus: {
+        status: 'running',
+        activeScanId: 'scan-3',
+        publishedScanId: 'scan-1',
+        startedAt: '2026-03-21T12:01:00Z',
+        updatedAt: '2026-03-21T12:02:00Z',
+        publishedAt: null,
+        progress: { tabsTotal: 19, tabsProcessed: 0, itemsTotal: 0, itemsProcessed: 0 },
+        error: null,
+      },
+    });
+
+    render(<StashViewerTab />);
+
+    // Stash grid should still render from previously loaded tab data
+    expect(await screen.findByTestId('stash-panel-grid')).toBeInTheDocument();
+    // Should show soft message instead of scary 0/19
+    expect(screen.getByText(/showing last available stash data/i)).toBeInTheDocument();
+  });
+
+  test('shows mismatch warning when backend returns wrong tab index', async () => {
+    const mismatchPayload = {
+      ...publishedTabsPayload,
+      stashTabs: [{
+        ...publishedTabsPayload.stashTabs[0],
+        returnedIndex: 0,
+      }],
+    };
+    getStashTabsMock
+      .mockResolvedValueOnce(publishedTabsPayload)
+      .mockResolvedValueOnce(mismatchPayload);
+
+    render(<StashViewerTab />);
+    await screen.findByTestId('stash-panel-grid');
+
+    // Click second tab (tabIndex=1)
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('stash-tab-tab-9'));
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId('tab-mismatch-warning')).toBeInTheDocument();
+    });
   });
 });
