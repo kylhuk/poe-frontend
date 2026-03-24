@@ -71,6 +71,7 @@ const publishedTabsPayload = {
       id: 'tab-2',
       name: 'Currency',
       type: 'currency',
+      returnedIndex: 0,
       items: [
         {
           id: 'item-1',
@@ -94,13 +95,12 @@ const publishedTabsPayload = {
         },
       ],
     },
-    {
-      id: 'tab-9',
-      name: 'Dump',
-      type: 'quad',
-      items: [],
-    },
   ],
+  tabsMeta: [
+    { id: 'tab-2', tabIndex: 0, name: 'Currency', type: 'CurrencyStash' },
+    { id: 'tab-9', tabIndex: 1, name: 'Dump', type: 'QuadStash' },
+  ],
+  numTabs: 2,
 };
 
 beforeEach(() => {
