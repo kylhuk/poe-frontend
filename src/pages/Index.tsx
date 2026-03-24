@@ -4,6 +4,7 @@ import ServicesTab from "@/components/tabs/ServicesTab";
 import AnalyticsTab from "@/components/tabs/AnalyticsTab";
 import PriceCheckTab from "@/components/tabs/PriceCheckTab";
 import StashViewerTab from "@/components/tabs/StashViewerTab";
+import EconomyTab from "@/components/tabs/EconomyTab";
 import MessagesTab from "@/components/tabs/MessagesTab";
 import OpportunitiesTab from "@/components/tabs/OpportunitiesTab";
 import DebugTrafficTab from "@/components/tabs/DebugTrafficTab";
