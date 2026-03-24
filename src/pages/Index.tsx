@@ -34,7 +34,7 @@ const makeTabs = (subtab?: string, onSubtabChange?: (s: string) => void): TabDef
     id: "opportunities",
     label: "Opportunities",
     icon: <TrendingUp className="h-3.5 w-3.5" />,
-    content: <OpportunitiesTab />,
+    content: <FlipFinderTab />,
     roles: ["member", "admin"],
   },
   {
