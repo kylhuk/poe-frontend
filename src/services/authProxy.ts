@@ -1,4 +1,4 @@
-import { supabase } from '@/integrations/supabase/client';
+import { supabase, SUPABASE_PROJECT_ID } from '@/lib/supabaseClient';
 
 export const POE_OAUTH_MESSAGE = 'poe-oauth-result';
 export const POE_OAUTH_RESULT_STORAGE_KEY = 'poe-oauth-result';
