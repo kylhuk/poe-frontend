@@ -1,31 +1,68 @@
 
 
-## Add Stash Scan Valuations (Two-Phase Scan)
+## Re-create debug_traffic Table with Auto-Pruning + Viewer Tab
 
-The scan process becomes two phases: (1) item retrieval scan (existing), then (2) valuation scan via the new `POST /api/v1/stash/scan/valuations` endpoint. After the item scan publishes, the frontend automatically triggers valuations and polls until complete.
+Re-create the `debug_traffic` table (previously dropped), add a trigger to cap it at 1000 rows, create a reader edge function, and add a UI tab to browse the logs.
 
 ### Changes
 
-**1. Types — `src/types/api.ts`**
-- Add `StashScanValuationsRequest` interface with fields: `scanId`, `minThreshold`, `maxThreshold`, `maxAgeDays`, optional `itemId`, `structuredMode`
-- Add `StashScanValuationsResponse` interface with fields: `structuredMode`, `stashId`, `itemId?`, `scanDatetime?`, `chaosMedian?`, `daySeries?`, `affixFallbackMedians?`, `items`
-- Add `startStashValuations(req: StashScanValuationsRequest): Promise<StashScanValuationsResponse>` to `ApiService` interface
+**1. Database migration**
+- Re-create `debug_traffic` table (same schema as before)
+- Add a trigger function that deletes oldest rows when count exceeds 1000, fired after each INSERT
+- RLS: service_role only (edge functions write with service role key)
 
-**2. API service — `src/services/api.ts`**
-- Add `startStashValuations()` method that POSTs to `/api/v1/stash/scan/valuations` with league/realm query params and the request body
+```sql
+CREATE TABLE public.debug_traffic (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  created_at timestamptz NOT NULL DEFAULT now(),
+  method text NOT NULL,
+  path text NOT NULL,
+  request_headers jsonb,
+  request_body text,
+  response_status int,
+  response_headers jsonb,
+  response_body text
+);
 
-**3. API proxy — `supabase/functions/api-proxy/index.ts`**
-- The `/api/v1/stash/` allowlist already covers this route — no change needed
+ALTER TABLE public.debug_traffic ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Service role only" ON public.debug_traffic
+  FOR ALL TO service_role USING (true) WITH CHECK (true);
 
-**4. StashViewerTab — `src/components/tabs/StashViewerTab.tsx`**
-- After item scan reaches `published` status, automatically call `api.startStashValuations({ scanId, minThreshold: 0, maxThreshold: 99999, maxAgeDays: 7 })` using the published scan ID
-- Add a `valuationPhase` state: `'idle' | 'running' | 'done' | 'failed'`
-- Show two-phase progress in the scan status area: "Phase 1: Scanning items…" → "Phase 2: Valuating items…" → done
-- Store valuation response for potential use (item price overlays already exist via `PriceEvaluation`)
-- The "Scan" button triggers the full pipeline; disable it during either phase
+-- Auto-prune to 1000 rows
+CREATE OR REPLACE FUNCTION public.prune_debug_traffic()
+RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+  DELETE FROM public.debug_traffic
+  WHERE id NOT IN (
+    SELECT id FROM public.debug_traffic
+    ORDER BY created_at DESC LIMIT 1000
+  );
+  RETURN NULL;
+END;
+$$;
+
+CREATE TRIGGER trg_prune_debug_traffic
+  AFTER INSERT ON public.debug_traffic
+  FOR EACH STATEMENT EXECUTE FUNCTION public.prune_debug_traffic();
+```
+
+**2. Edge function — `supabase/functions/debug-traffic-reader/index.ts`**
+- Re-create the reader function that queries `debug_traffic` ordered by `created_at DESC`, with a `limit` query param (default 100, max 1000)
+- Uses service role key to bypass RLS
+
+**3. Frontend tab — `src/components/tabs/DebugTrafficTab.tsx`**
+- Table showing: timestamp, method, path, response status, request/response body (expandable)
+- Auto-refresh button + manual refresh
+- Sorted newest-first
+- Fetches from the debug-traffic-reader edge function
+
+**4. Index page — `src/pages/Index.tsx`**
+- Add "API Traffic" tab visible to `admin` role only
+- Import DebugTrafficTab and add to tab list
 
 ### Files affected
-- `src/types/api.ts` — add request/response types, update ApiService
-- `src/services/api.ts` — add `startStashValuations` method
-- `src/components/tabs/StashViewerTab.tsx` — two-phase scan flow with UI feedback
+- New migration SQL (via migration tool)
+- `supabase/functions/debug-traffic-reader/index.ts` — create
+- `src/components/tabs/DebugTrafficTab.tsx` — create
+- `src/pages/Index.tsx` — add tab entry
 
