@@ -26,6 +26,8 @@ import type {
   StashItemHistoryResponse,
   StashScanStartResponse,
   StashScanStatus,
+  StashScanValuationsRequest,
+  StashScanValuationsResponse,
   StashStatus,
   StashTabMeta,
   StashTabsResponse,
