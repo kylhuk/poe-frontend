@@ -210,7 +210,7 @@ type ContractPayload = {
 };
 
 import { logApiError } from './apiErrorLog';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase, SUPABASE_PROJECT_ID } from '@/lib/supabaseClient';
 
 
 let cachedPrimaryLeague: string | null = null;
