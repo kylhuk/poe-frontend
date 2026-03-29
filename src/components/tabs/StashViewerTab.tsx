@@ -162,6 +162,25 @@ const StashViewerTab = forwardRef<HTMLDivElement, Record<string, never>>(functio
           window.clearInterval(timer);
           setScanBusy(false);
           await loadTab(activeTabIndex);
+          // Phase 2: trigger valuations
+          const scanId = next.publishedScanId ?? scanStatus.activeScanId;
+          if (scanId) {
+            setValuationPhase('running');
+            try {
+              const valResult = await api.startStashValuations({
+                scanId,
+                minThreshold: 0,
+                maxThreshold: 99999,
+                maxAgeDays: 7,
+              });
+              setValuationResult(valResult);
+              setValuationPhase('done');
+              toast.success('Valuations complete');
+            } catch (valErr) {
+              setValuationPhase('failed');
+              toast.error(valErr instanceof Error ? valErr.message : 'Valuation failed');
+            }
+          }
         }
         if (next.status === 'failed') {
           window.clearInterval(timer);
@@ -177,7 +196,7 @@ const StashViewerTab = forwardRef<HTMLDivElement, Record<string, never>>(functio
       }
     }, 1500);
     return () => window.clearInterval(timer);
-  }, [scanBusy, loadTab, activeTabIndex]);
+  }, [scanBusy, loadTab, activeTabIndex, scanStatus.activeScanId]);
 
   const startScan = useCallback(async () => {
     try {
