@@ -16,8 +16,7 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { RefreshCw, ChevronDown, ChevronRight } from "lucide-react";
-import { supabase } from "@/lib/supabaseClient";
-import { SUPABASE_PROJECT_ID } from "@/lib/supabaseClient";
+import { supabase, SUPABASE_ANON_KEY, SUPABASE_PROJECT_ID } from "@/lib/supabaseClient";
 
 interface TrafficEntry {
   id: string;
@@ -55,7 +54,7 @@ const ExpandableCell = ({ label, content }: { label: string; content: string | n
   return (
     <Collapsible open={open} onOpenChange={setOpen}>
       <CollapsibleTrigger asChild>
-        <button className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors text-left">
+        <button type="button" className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors text-left">
           {open ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
           {truncated && !open ? content.slice(0, 80) + "…" : label}
         </button>
@@ -87,6 +86,7 @@ const DebugTrafficTab = () => {
         {
           headers: {
             Authorization: `Bearer ${token}`,
+            apikey: SUPABASE_ANON_KEY,
             "Content-Type": "application/json",
           },
         }
