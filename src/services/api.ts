@@ -69,6 +69,61 @@ export interface ScannerAnalyticsResponse {
   complexityTiers: ComplexityTier[];
 }
 
+export interface MlCandidateComparison {
+  candidate_run_id: string;
+  incumbent_run_id: string;
+  candidate_avg_mdape: number;
+  incumbent_avg_mdape: number;
+  candidate_avg_interval_coverage: number;
+  incumbent_avg_interval_coverage: number;
+  mdape_improvement: number;
+  coverage_delta: number;
+  coverage_floor_ok: boolean;
+}
+
+export interface MlPromotionPolicy {
+  mdape_ceiling: number | null;
+  coverage_floor: number | null;
+  min_rows: number | null;
+  [key: string]: unknown;
+}
+
+export interface MlWarmup {
+  status: string;
+  message: string | null;
+  runs_needed: number | null;
+  runs_completed: number | null;
+  [key: string]: unknown;
+}
+
+export interface MlRouteHotspot {
+  route: string | null;
+  avg_mdape: number | null;
+  avg_interval_coverage: number | null;
+  sample_count: number | null;
+  anomaly: boolean | null;
+  [key: string]: unknown;
+}
+
+export interface MlStatus {
+  league: string;
+  run: string;
+  status: string;
+  promotion_verdict: string;
+  stop_reason: string;
+  active_model_version: string | null;
+  latest_avg_mdape: number;
+  latest_avg_interval_coverage: number;
+  candidate_vs_incumbent: MlCandidateComparison | null;
+  route_hotspots: MlRouteHotspot[];
+  promotion_policy: MlPromotionPolicy | null;
+  warmup: MlWarmup | null;
+  route_decisions: unknown[];
+}
+
+export interface MlAnalytics {
+  status: MlStatus;
+}
 
 type ApiErrorPayload = {
   error?: {
