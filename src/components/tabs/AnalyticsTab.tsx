@@ -769,7 +769,7 @@ const OUTLIERS_DEFAULTS = {
   sort: 'expected_profit',
   order: 'desc' as const,
   minTotal: 25,
-  maxBuyIn: 100,
+  
   limit: 100,
 };
 
