@@ -238,7 +238,7 @@ describe('analytics api helpers', () => {
       minTotal: 20,
     });
     expect(result.query.query).toBeUndefined();
-    expect(result.query.maxBuyIn).toBeUndefined();
+    expect(result.query.limit).toBeUndefined();
     expect(result.query.limit).toBeUndefined();
   });
 

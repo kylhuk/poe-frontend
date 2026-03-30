@@ -1229,16 +1229,6 @@ function PricingOutliersPanel() {
                 ))}
               </select>
             </label>
-            <label className="text-xs text-muted-foreground space-y-1">
-              <span>Max buy-in (chaos)</span>
-              <input
-                type="number"
-                min={1}
-                value={maxBuyIn}
-                onChange={event => setMaxBuyIn(Math.max(1, Number(event.target.value) || 1))}
-                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground"
-              />
-            </label>
           </div>
 
           <p className="text-xs text-muted-foreground">
