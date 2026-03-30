@@ -1,6 +1,7 @@
 const ALLOWED_ORIGINS = [
   "https://poe-frontend.lovable.app",
   "https://id-preview--4f7be476-8f8c-46dd-8a65-a084f790c20d.lovable.app",
+  "https://poe.lama-lan.ch",
 ];
 
 export function getCorsHeaders(req: Request): Record<string, string> {

@@ -4,12 +4,13 @@ const mocks = vi.hoisted(() => ({
   getSessionMock: vi.fn(),
 }));
 
-vi.mock('@/integrations/supabase/client', () => ({
+vi.mock('@/lib/supabaseClient', () => ({
   supabase: {
     auth: {
       getSession: mocks.getSessionMock,
     },
   },
+  SUPABASE_PROJECT_ID: 'project-id',
 }));
 
 vi.mock('@/services/auth', () => ({}));
@@ -266,7 +267,6 @@ describe('analytics api helpers', () => {
       sort: 'expected_profit',
       order: 'desc',
       minTotal: 20,
-      maxBuyIn: 75,
       limit: 50,
     });
   });

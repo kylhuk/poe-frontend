@@ -4,18 +4,23 @@ const { getSessionMock } = vi.hoisted(() => ({
   getSessionMock: vi.fn(),
 }));
 
-vi.mock('@/integrations/supabase/client', () => ({
+vi.mock('@/lib/supabaseClient', () => ({
   supabase: {
     auth: {
       getSession: getSessionMock,
     },
   },
+  SUPABASE_PROJECT_ID: 'project-id',
 }));
 
-import { api } from './api';
+async function loadApi() {
+  const { api } = await import('./api');
+  return api;
+}
 
 describe('stash api methods', () => {
   beforeEach(() => {
+    vi.resetModules();
     vi.stubEnv('VITE_SUPABASE_PROJECT_ID', 'project-id');
     getSessionMock.mockResolvedValue({ data: { session: { access_token: 'token-123' } } });
   });
@@ -26,20 +31,28 @@ describe('stash api methods', () => {
   });
 
   test('starts a stash scan and returns scan metadata', async () => {
-    const fetchMock = vi.fn(async () => ({
-      ok: true,
-      status: 202,
-      json: async () => ({
-        scanId: 'scan-2',
-        status: 'running',
-        startedAt: '2026-03-21T12:01:00Z',
-        accountName: 'qa-exile',
-        league: 'Mirage',
-        realm: 'pc',
-      }),
-    }) as Response);
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({ primary_league: 'Mirage' }),
+      } as Response)
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 202,
+        json: async () => ({
+          scanId: 'scan-2',
+          status: 'running',
+          startedAt: '2026-03-21T12:01:00Z',
+          accountName: 'qa-exile',
+          league: 'Mirage',
+          realm: 'pc',
+        }),
+      } as Response);
     vi.stubGlobal('fetch', fetchMock);
 
+    const api = await loadApi();
     const result = await api.startStashScan();
 
     expect(fetchMock).toHaveBeenCalledTimes(2);
@@ -50,6 +63,11 @@ describe('stash api methods', () => {
   test('fetches stash scan status and item history', async () => {
     const fetchMock = vi
       .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({ primary_league: 'Mirage' }),
+      } as Response)
       .mockResolvedValueOnce({
         ok: true,
         status: 200,
@@ -99,6 +117,7 @@ describe('stash api methods', () => {
       } as Response);
     vi.stubGlobal('fetch', fetchMock);
 
+    const api = await loadApi();
     const status = await api.getStashScanStatus();
     const history = await api.getStashItemHistory('sig:item-1');
 
@@ -106,5 +125,6 @@ describe('stash api methods', () => {
     expect(status.progress.itemsProcessed).toBe(44);
     expect(history.item.name).toBe('Grim Bane');
     expect(history.history[0].interval.p10).toBe(39);
+    expect(fetchMock).toHaveBeenCalledTimes(3);
   });
 });

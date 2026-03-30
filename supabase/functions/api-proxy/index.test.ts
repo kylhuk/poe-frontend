@@ -10,7 +10,20 @@ describe('api proxy contract', () => {
     vi.restoreAllMocks();
   });
 
-  test('omits legacy x-poe-session forwarding and cookies', async () => {
+  test('allows the live poe.lama-lan.ch origin', async () => {
+    const { getCorsHeaders } = await import('./contract');
+
+    const corsHeaders = getCorsHeaders(
+      new Request('https://example.test', {
+        method: 'OPTIONS',
+        headers: { origin: 'https://poe.lama-lan.ch' },
+      }),
+    );
+
+    expect(corsHeaders['Access-Control-Allow-Origin']).toBe('https://poe.lama-lan.ch');
+  });
+
+  test('forwards only the existing cookie header', async () => {
     const { buildForwardHeaders, getCorsHeaders } = await import('./contract');
 
     const corsHeaders = getCorsHeaders(new Request('https://example.test', { method: 'OPTIONS' }));
@@ -18,10 +31,8 @@ describe('api proxy contract', () => {
 
     const forwarded = buildForwardHeaders({
       existingCookie: 'foo=bar',
-      backendSession: 'session-1',
     });
 
-    expect(forwarded.Cookie).toContain('poe_session=session-1');
-    expect(forwarded.Cookie).not.toContain('POESESSID=');
+    expect(forwarded.Cookie).toBe('foo=bar');
   });
 });
