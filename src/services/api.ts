@@ -686,7 +686,6 @@ function normalizeSearchHistoryResponse(payload: unknown): SearchHistoryResponse
 function normalizePricingOutliersResponse(payload: unknown): PricingOutliersResponse {
   const source = asObject(payload);
   const query = asObject(source.query) as PricingOutliersQueryPayload;
-  const topLevelMaxBuyIn = optNumber(source.maxBuyIn ?? source.max_buy_in);
   const topLevelLimit = optNumber(source.limit);
   const normalizedQuery = {
     ...(optString(query.query) ? { query: optString(query.query) } : {}),
@@ -697,9 +696,6 @@ function normalizePricingOutliersResponse(payload: unknown): PricingOutliersResp
       : {}),
     ...(optNumber(query.minTotal ?? query.min_total ?? source.minTotal ?? source.min_total) != null
       ? { minTotal: optNumber(query.minTotal ?? query.min_total ?? source.minTotal ?? source.min_total) as number }
-      : {}),
-    ...((optNumber(query.maxBuyIn ?? query.max_buy_in) ?? topLevelMaxBuyIn) != null
-      ? { maxBuyIn: (optNumber(query.maxBuyIn ?? query.max_buy_in) ?? topLevelMaxBuyIn) as number }
       : {}),
     ...((optNumber(query.limit) ?? topLevelLimit) != null
       ? { limit: (optNumber(query.limit) ?? topLevelLimit) as number }

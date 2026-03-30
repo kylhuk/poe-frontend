@@ -48,26 +48,18 @@ const AnalyticsTab = forwardRef<HTMLDivElement, AnalyticsTabProps>(function Anal
       <TabsList className="flex-wrap h-auto gap-1 bg-secondary/50 p-1">
         <TabsTrigger data-testid="analytics-tab-ingestion" value="ingestion" className="tab-game text-xs">Ingestion</TabsTrigger>
         <TabsTrigger data-testid="analytics-tab-scanner" value="scanner" className="tab-game text-xs">Scanner</TabsTrigger>
-        <TabsTrigger data-testid="analytics-tab-alerts" value="alerts" className="tab-game text-xs">Alerts</TabsTrigger>
-        <TabsTrigger data-testid="analytics-tab-backtests" value="backtests" className="tab-game text-xs">Backtests</TabsTrigger>
         <TabsTrigger data-testid="analytics-tab-ml" value="ml" className="tab-game text-xs">ML</TabsTrigger>
-        <TabsTrigger data-testid="analytics-tab-reports" value="reports" className="tab-game text-xs">Reports</TabsTrigger>
         <TabsTrigger data-testid="analytics-tab-search" value="search" className="tab-game text-xs">Search</TabsTrigger>
         <TabsTrigger data-testid="analytics-tab-outliers" value="outliers" className="tab-game text-xs">Outliers</TabsTrigger>
         <TabsTrigger data-testid="analytics-tab-session" value="session" className="tab-game text-xs">Session</TabsTrigger>
-        <TabsTrigger data-testid="analytics-tab-diagnostics" value="diagnostics" className="tab-game text-xs">Diagnostics</TabsTrigger>
       </TabsList>
 
       <TabsContent data-testid="analytics-panel-ingestion" value="ingestion"><IngestionPanel /></TabsContent>
       <TabsContent data-testid="analytics-panel-scanner" value="scanner"><ScannerPanel /></TabsContent>
-      <TabsContent data-testid="analytics-panel-alerts" value="alerts"><AlertsPanel /></TabsContent>
-      <TabsContent data-testid="analytics-panel-backtests" value="backtests"><BacktestsPanel /></TabsContent>
       <TabsContent data-testid="analytics-panel-ml" value="ml"><MlPanel /></TabsContent>
-      <TabsContent data-testid="analytics-panel-reports" value="reports"><ReportsPanel /></TabsContent>
       <TabsContent data-testid="analytics-panel-search" value="search"><SearchHistoryPanel /></TabsContent>
       <TabsContent data-testid="analytics-panel-outliers" value="outliers"><PricingOutliersPanel /></TabsContent>
       <TabsContent data-testid="analytics-panel-session" value="session"><RenderState kind="feature_unavailable" message="Session analytics not supported by backend contract" /></TabsContent>
-      <TabsContent data-testid="analytics-panel-diagnostics" value="diagnostics"><DiagnosticsPanel /></TabsContent>
     </Tabs>
     </div>
   );
