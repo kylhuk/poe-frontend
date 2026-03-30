@@ -35,4 +35,12 @@ describe('api proxy contract', () => {
 
     expect(forwarded.Cookie).toBe('foo=bar');
   });
+
+  test('preserves query strings in proxy paths', async () => {
+    const { normalizeProxyPath } = await import('./contract');
+
+    expect(normalizeProxyPath('/api/v1/auth/callback?code=code-123&state=state-456')).toBe(
+      '/api/v1/auth/callback?code=code-123&state=state-456',
+    );
+  });
 });

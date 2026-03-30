@@ -1,11 +1,9 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 import { rewriteProxySetCookie } from "./cookies.ts";
-import { buildForwardHeaders, getCorsHeaders } from "./contract.ts";
+import { buildForwardHeaders, getCorsHeaders, normalizeProxyPath } from "./contract.ts";
 
 const API_BASE = "https://api.poe.lama-lan.ch";
-
-const ALLOWED_PATH_PREFIX = "/api/v1/";
 
 // Paths that require the admin role (ops-only)
 const ADMIN_PATH_PREFIXES = [
@@ -28,24 +26,6 @@ function isPublicEndpoint(path: string): boolean {
 
 function isAdminPath(path: string): boolean {
   return ADMIN_PATH_PREFIXES.some((p) => path.startsWith(p));
-}
-
-function validateProxyPath(raw: string): string | null {
-  // Reject encoded traversal attempts
-  if (raw.includes("..") || /%2e/i.test(raw)) {
-    return null;
-  }
-  // Must start with allowed prefix or be /healthz
-  if (raw === "/healthz") return raw;
-  if (!raw.startsWith(ALLOWED_PATH_PREFIX)) return null;
-  // Normalise and re-check
-  try {
-    const normalised = new URL(raw, API_BASE).pathname;
-    if (!normalised.startsWith(ALLOWED_PATH_PREFIX)) return null;
-    return normalised;
-  } catch {
-    return null;
-  }
 }
 
 // Debug: save request/response to debug_traffic table
@@ -93,7 +73,7 @@ Deno.serve(async (req) => {
     });
   }
 
-  const proxyPath = validateProxyPath(rawPath);
+  const proxyPath = normalizeProxyPath(rawPath);
   if (!proxyPath) {
     return new Response(JSON.stringify({ error: "Forbidden path" }), {
       status: 403,

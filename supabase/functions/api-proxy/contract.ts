@@ -27,3 +27,18 @@ export function buildForwardHeaders(params: {
   }
   return forwardHeaders;
 }
+
+export function normalizeProxyPath(raw: string): string | null {
+  if (raw.includes("..") || /%2e/i.test(raw)) {
+    return null;
+  }
+  if (raw === "/healthz") return raw;
+  if (!raw.startsWith("/api/v1/")) return null;
+  try {
+    const normalised = new URL(raw, "https://api.poe.lama-lan.ch");
+    if (!normalised.pathname.startsWith("/api/v1/")) return null;
+    return `${normalised.pathname}${normalised.search}`;
+  } catch {
+    return null;
+  }
+}
