@@ -4,6 +4,7 @@ import { rewriteProxySetCookie } from "./cookies.ts";
 import { buildForwardHeaders, getCorsHeaders, normalizeProxyPath } from "./contract.ts";
 
 const API_BASE = "https://api.poe.lama-lan.ch";
+const DEBUG_TRAFFIC_CAPTURE = Deno.env.get("ENABLE_DEBUG_TRAFFIC_CAPTURE") === "true";
 
 // Paths that require the admin role (ops-only)
 const ADMIN_PATH_PREFIXES = [
@@ -168,9 +169,6 @@ Deno.serve(async (req) => {
 
     console.log(`[api-proxy] backend responded ${backendRes.status}`);
 
-    // Debug traffic capture — enabled for all API calls
-    const debugCapture = true;
-
     const responseHeaders = new Headers(corsHeaders);
     responseHeaders.set("Content-Type", backendRes.headers.get("Content-Type") || "application/json");
 
@@ -180,19 +178,23 @@ Deno.serve(async (req) => {
       responseHeaders.set("set-cookie", rewriteProxySetCookie(setCookie));
     }
 
-    const responseBody = await backendRes.arrayBuffer();
-
-    // Fire-and-forget: capture traffic in background if debug is on
-    if (debugCapture) {
-      const bodyText = new TextDecoder().decode(responseBody);
+    if (DEBUG_TRAFFIC_CAPTURE) {
+      const backendCopy = backendRes.clone();
       const fwdHeadersObj: Record<string, string> = {};
       for (const [k, v] of Object.entries(forwardHeaders)) fwdHeadersObj[k] = v;
       const resHeadersObj: Record<string, string> = {};
-      backendRes.headers.forEach((v, k) => resHeadersObj[k] = v);
-      captureTraffic(req.method, proxyPath, fwdHeadersObj, body, backendRes.status, resHeadersObj, bodyText);
+      backendRes.headers.forEach((v, k) => { resHeadersObj[k] = v; });
+      void (async () => {
+        try {
+          const bodyText = await backendCopy.text();
+          await captureTraffic(req.method, proxyPath, fwdHeadersObj, body, backendRes.status, resHeadersObj, bodyText);
+        } catch (e) {
+          console.error(`[api-proxy] DEBUG capture failed:`, e);
+        }
+      })();
     }
 
-    return new Response(responseBody, {
+    return new Response(backendRes.body, {
       status: backendRes.status,
       headers: responseHeaders,
     });
