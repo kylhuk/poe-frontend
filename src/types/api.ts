@@ -175,7 +175,6 @@ export interface PricingOutliersRequest {
   sort?: string;
   order?: 'asc' | 'desc';
   minTotal?: number;
-  maxBuyIn?: number;
   limit?: number;
 }
 
