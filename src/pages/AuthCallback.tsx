@@ -5,6 +5,37 @@ import { authProxyFetch, persistOAuthRelayResult, POE_OAUTH_MESSAGE } from '@/se
 
 type CallbackState = 'loading' | 'success' | 'error';
 
+function getErrorMessage(body: unknown, fallback: string): string {
+  if (!body || typeof body !== 'object') {
+    return fallback;
+  }
+
+  const record = body as Record<string, unknown>;
+  const message = record.message;
+  if (typeof message === 'string' && message.trim()) {
+    return message;
+  }
+
+  const error = record.error;
+  if (typeof error === 'string' && error.trim()) {
+    return error;
+  }
+
+  if (error && typeof error === 'object') {
+    const errorRecord = error as Record<string, unknown>;
+    const nestedMessage = errorRecord.message;
+    if (typeof nestedMessage === 'string' && nestedMessage.trim()) {
+      return nestedMessage;
+    }
+    const code = errorRecord.code;
+    if (typeof code === 'string' && code.trim()) {
+      return code;
+    }
+  }
+
+  return fallback;
+}
+
 const AuthCallback = () => {
   const [state, setState] = useState<CallbackState>('loading');
   const [message, setMessage] = useState('Completing PoE login…');
@@ -57,7 +88,7 @@ const AuthCallback = () => {
         const response = await authProxyFetch(`/callback?code=${encodeURIComponent(code)}&state=${encodeURIComponent(stateParam)}`);
         if (!response.ok) {
           const body = await response.json().catch(() => ({}));
-          throw new Error(body.message || body.error || `Callback failed (${response.status})`);
+          throw new Error(getErrorMessage(body, `Callback failed (${response.status})`));
         }
 
         const body = await response.json().catch(() => ({}));

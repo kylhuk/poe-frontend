@@ -54,3 +54,34 @@ test('keeps the callback page open when the session is not confirmed', async () 
   }, { timeout: 3000 });
   expect(window.close).not.toHaveBeenCalled();
 });
+
+test('renders backend callback errors as readable text', async () => {
+  authProxyFetchMock.mockResolvedValue(
+    new Response(JSON.stringify({
+      error: {
+        code: 'oauth_access_denied',
+        message: 'Path of Exile login was cancelled',
+        details: null,
+      },
+    }), {
+      status: 401,
+      headers: { 'Content-Type': 'application/json' },
+    }),
+  );
+
+  window.history.pushState({}, '', '/auth/callback?code=code-123&state=state-456');
+
+  render(
+    <MemoryRouter initialEntries={['/auth/callback?code=code-123&state=state-456']}>
+      <Routes>
+        <Route path="/auth/callback" element={<AuthCallback />} />
+      </Routes>
+    </MemoryRouter>,
+  );
+
+  await waitFor(() => {
+    expect(screen.getByText('Path of Exile login was cancelled')).toBeInTheDocument();
+  }, { timeout: 3000 });
+  expect(screen.queryByText('[object Object]')).not.toBeInTheDocument();
+  expect(window.close).not.toHaveBeenCalled();
+});
