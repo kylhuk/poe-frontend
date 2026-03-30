@@ -1227,6 +1227,7 @@ export const api: ApiService = {
         method: 'POST',
         body: JSON.stringify({
           scanId: req.scanId,
+          ...(req.stashId ? { stashId: req.stashId } : {}),
           minThreshold: req.minThreshold,
           maxThreshold: req.maxThreshold,
           maxAgeDays: req.maxAgeDays,
