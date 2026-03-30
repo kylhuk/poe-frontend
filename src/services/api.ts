@@ -1132,7 +1132,7 @@ export const api: ApiService = {
 
   async startStashScan() {
     const league = await primaryLeague();
-    return request<StashScanStartResponse>(`/api/v1/stash/scan?league=${encodeURIComponent(league)}&realm=pc`, {
+    return request<StashScanStartResponse>(`/api/v1/stash/scan/start?league=${encodeURIComponent(league)}&realm=pc`, {
       method: 'POST',
     });
   },
