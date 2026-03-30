@@ -285,7 +285,8 @@ export interface StashItem {
 export type StashTabType =
   | 'normal' | 'quad' | 'currency' | 'map' | 'fragment'
   | 'essence' | 'delirium' | 'blight' | 'ultimatum'
-  | 'divination' | 'unique' | 'delve' | 'metamorph';
+  | 'divination' | 'unique' | 'delve' | 'metamorph'
+  | 'flask' | 'gem';
 
 export interface StashTab {
   id: string;
