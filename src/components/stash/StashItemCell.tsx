@@ -21,18 +21,34 @@ const EVAL_BG: Record<string, string> = {
   mispriced: 'bg-destructive/10',
 };
 
+const EVAL_BORDER: Record<string, string> = {
+  well_priced: 'ring-1 ring-inset ring-success/40',
+  could_be_better: 'ring-1 ring-inset ring-warning/40',
+  mispriced: 'ring-1 ring-inset ring-destructive/50 animate-pulse',
+};
+
+const EVAL_BADGE_BG: Record<string, string> = {
+  well_priced: 'bg-success/80 text-success-foreground',
+  could_be_better: 'bg-warning/80 text-warning-foreground',
+  mispriced: 'bg-destructive/90 text-destructive-foreground',
+};
+
 interface StashItemCellProps {
   item: PoeItem;
   isQuad?: boolean;
   style?: React.CSSProperties;
   className?: string;
+  onItemClick?: (item: PoeItem) => void;
 }
 
-export default function StashItemCell({ item, isQuad, style, className }: StashItemCellProps) {
+export default function StashItemCell({ item, isQuad, style, className, onItemClick }: StashItemCellProps) {
   const evalBg = item.priceEvaluation ? EVAL_BG[item.priceEvaluation] : '';
+  const evalRing = item.priceEvaluation ? EVAL_BORDER[item.priceEvaluation] : '';
   const borderClass = FRAME_TYPE_BORDER[item.frameType] ?? 'border-muted-foreground/20';
   const displayName = item.name || item.typeLine;
   const iconSrc = item.icon || item.iconUrl;
+  const cur = item.currency === 'div' ? 'd' : 'c';
+  const hasPrice = item.estimatedPrice != null;
 
   return (
     <HoverCard openDelay={80} closeDelay={50}>
@@ -42,9 +58,12 @@ export default function StashItemCell({ item, isQuad, style, className }: StashI
             'stash-item-cell group relative',
             borderClass,
             evalBg,
+            evalRing,
+            onItemClick && item.fingerprint ? 'cursor-pointer' : '',
             className,
           )}
           style={style}
+          onClick={onItemClick && item.fingerprint ? () => onItemClick(item) : undefined}
         >
           {/* Official icon */}
           {iconSrc && (
@@ -65,6 +84,34 @@ export default function StashItemCell({ item, isQuad, style, className }: StashI
               isQuad ? 'text-[5px]' : 'text-[9px]',
             )}>
               {item.stackSize}
+            </span>
+          )}
+
+          {/* Price badge overlay */}
+          {hasPrice && (
+            <span className={cn(
+              'absolute bottom-0 inset-x-0 text-center font-mono font-bold leading-none truncate',
+              'drop-shadow-[0_1px_2px_rgba(0,0,0,0.95)]',
+              isQuad ? 'text-[4px] px-0' : 'text-[7px] px-0.5',
+              item.priceEvaluation
+                ? EVAL_BADGE_BG[item.priceEvaluation]
+                : 'bg-background/70 text-foreground',
+            )}>
+              {item.estimatedPrice! < 1000
+                ? `${Math.round(item.estimatedPrice!)}${cur}`
+                : `${(item.estimatedPrice! / 1000).toFixed(1)}k${cur}`}
+            </span>
+          )}
+
+          {/* Delta percent label (normal tabs only) */}
+          {!isQuad && hasPrice && item.priceDeltaPercent != null && Math.abs(item.priceDeltaPercent) >= 5 && (
+            <span className={cn(
+              'absolute top-0 right-0 font-mono font-bold leading-none',
+              'text-[6px] px-0.5',
+              'drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]',
+              item.priceDeltaPercent > 0 ? 'text-success' : 'text-destructive',
+            )}>
+              {item.priceDeltaPercent > 0 ? '+' : ''}{Math.round(item.priceDeltaPercent)}%
             </span>
           )}
         </div>

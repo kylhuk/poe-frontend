@@ -6,12 +6,13 @@ import { cn } from '@/lib/utils';
 interface SpecialLayoutGridProps {
   items: PoeItem[];
   layout: SpecialLayout;
+  onItemClick?: (item: PoeItem) => void;
 }
 
 // PoE special tabs use a fixed coordinate system (~569px viewport)
 const VIEWPORT_SIZE = 569;
 
-export default function SpecialLayoutGrid({ items, layout }: SpecialLayoutGridProps) {
+export default function SpecialLayoutGrid({ items, layout, onItemClick }: SpecialLayoutGridProps) {
   const sections = layout.sections ?? [];
   const [activeSection, setActiveSection] = useState(sections[0] ?? '');
 
@@ -83,6 +84,7 @@ export default function SpecialLayoutGrid({ items, layout }: SpecialLayoutGridPr
                 <StashItemCell
                   item={item}
                   className="w-full h-full"
+                  onItemClick={onItemClick}
                 />
               ) : (
                 <div className="stash-empty-cell w-full h-full" />
