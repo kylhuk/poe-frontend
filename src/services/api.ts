@@ -331,14 +331,6 @@ export async function getAnalyticsScanner() {
   };
 }
 
-export async function getAnalyticsAlerts() {
-  const payload = await request<{ rows: AlertRow[] }>('/api/v1/ops/analytics/alerts');
-  return payload.rows;
-}
-
-export async function getAnalyticsBacktests() {
-  return request<BacktestAnalytics>('/api/v1/ops/analytics/backtests');
-}
 
 export interface OpportunitiesAnalytics {
   [key: string]: unknown;
