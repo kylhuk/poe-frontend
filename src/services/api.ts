@@ -1239,7 +1239,11 @@ export const api: ApiService = {
   },
 
   async getMessages() {
-    const payload = await request<{ messages: AppMessage[] }>('/api/v1/ops/messages');
-    return payload.messages;
+    const payload = await request<unknown>('/api/v1/ops/messages');
+    // Spec says OpsMessagesResponse is a plain array; handle both shapes
+    if (Array.isArray(payload)) return payload as AppMessage[];
+    const obj = payload as Record<string, unknown>;
+    if (Array.isArray(obj.messages)) return obj.messages as AppMessage[];
+    return [];
   },
 };

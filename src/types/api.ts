@@ -591,6 +591,7 @@ export interface MlLeagueStatusResponse {
 // ========== Stash Scan Valuations ==========
 export interface StashScanValuationsRequest {
   scanId: string;
+  stashId?: string;
   minThreshold: number;
   maxThreshold: number;
   maxAgeDays: number;
