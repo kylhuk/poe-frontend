@@ -156,13 +156,11 @@ export interface PricingOutliersQuery {
   sort?: string;
   order?: 'asc' | 'desc';
   minTotal?: number;
-  maxBuyIn?: number;
   limit?: number;
 }
 
 export interface PricingOutliersQueryPayload extends PricingOutliersQuery {
   min_total?: number;
-  max_buy_in?: number;
 }
 
 export interface PricingOutliersResponse {
