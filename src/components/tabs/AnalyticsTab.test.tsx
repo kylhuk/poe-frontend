@@ -332,7 +332,6 @@ function createPricingOutliersResponse(
 const DEFAULT_OUTLIERS_REQUEST = {
   sort: 'expected_profit',
   order: 'desc',
-  maxBuyIn: 100,
 };
 
 const OUTLIER_SORT_OPTION_VALUES = [
