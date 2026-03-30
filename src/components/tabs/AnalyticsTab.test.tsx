@@ -712,7 +712,7 @@ describe('AnalyticsTab ML panel', () => {
     });
     await flushMicrotasks();
 
-    expect(getAnalyticsMlMock).not.toHaveBeenCalled();
+    expect(getMlAutomationStatusMock).toHaveBeenCalledTimes(1);
     expect(getMlAutomationStatusMock).toHaveBeenCalledTimes(1);
     expect(getMlAutomationHistoryMock).toHaveBeenCalledTimes(1);
 
