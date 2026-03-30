@@ -671,7 +671,7 @@ function mapPoeStashType(rawType: string): StashTab['type'] {
   return map[rawType] ?? (rawType as StashTab['type']) ?? 'normal';
 }
 
-function normalizeStashTab(raw: unknown): StashTab {
+function normalizeStashTab(raw: unknown, fallbackIndex?: number): StashTab {
   const tab = asObject(raw);
   const rawItems = Array.isArray(tab.items) ? tab.items : [];
   const rawType = optString(tab.type) ?? 'normal';
@@ -681,7 +681,7 @@ function normalizeStashTab(raw: unknown): StashTab {
     id: optString(tab.id) ?? crypto.randomUUID(),
     name: optString(tab.name) ?? 'Tab',
     type: mappedType,
-    returnedIndex: optNumber(tab.index ?? tab.tabIndex ?? tab.tab_index),
+    returnedIndex: optNumber(tab.index ?? tab.tabIndex ?? tab.tab_index) ?? fallbackIndex,
     items: rawItems.map(normalizePoeItem),
     quadLayout: mappedType === 'quad' || (typeof tab.quadLayout === 'boolean' ? tab.quadLayout : Boolean(tab.quad_layout)),
     currencyLayout: (tab.currencyLayout ?? tab.currency_layout) as StashTab['currencyLayout'],
@@ -716,32 +716,45 @@ function normalizeStashTabsResponse(payload: unknown): StashTabsResponse {
   const source = asObject(payload);
   const rawTabsMeta = Array.isArray(source.tabs) ? source.tabs as unknown[] : [];
   const tabsMeta = normalizeTabsMeta(rawTabsMeta);
-  const numTabs = optNumber(source.numTabs ?? source.num_tabs) ?? tabsMeta.length;
 
   // New raw PoE schema: { stash: {single tab object}, tabs: [...], numTabs }
   if (source.stash && typeof source.stash === 'object' && !Array.isArray(source.stash)) {
-    const tab = normalizeStashTab(source.stash);
+    const tab = normalizeStashTab(source.stash, 0);
+    const effectiveTabsMeta = tabsMeta.length > 0
+      ? tabsMeta
+      : [{ id: tab.id, tabIndex: 0, name: tab.name, type: tab.type }];
+    const numTabs = optNumber(source.numTabs ?? source.num_tabs) ?? effectiveTabsMeta.length;
     return {
       scanId: optString(source.scanId ?? source.scan_id),
       publishedAt: optString(source.publishedAt ?? source.published_at),
       isStale: typeof source.isStale === 'boolean' ? source.isStale : Boolean(source.is_stale),
       scanStatus: (source.scanStatus ?? source.scan_status) as StashTabsResponse['scanStatus'],
       stashTabs: [tab],
-      tabsMeta,
+      tabsMeta: effectiveTabsMeta,
       numTabs,
     };
   }
 
   // Legacy format: { stashTabs: [...] }
   const rawTabs = Array.isArray(source.stashTabs ?? source.stash_tabs) ? (source.stashTabs ?? source.stash_tabs) as unknown[] : [];
+  const stashTabs = rawTabs.map((tab, index) => normalizeStashTab(tab, index));
+  const effectiveTabsMeta = tabsMeta.length > 0
+    ? tabsMeta
+    : stashTabs.map((tab, index) => ({
+        id: tab.id,
+        tabIndex: index,
+        name: tab.name,
+        type: tab.type,
+      }));
+  const numTabs = optNumber(source.numTabs ?? source.num_tabs) ?? effectiveTabsMeta.length;
 
   return {
     scanId: optString(source.scanId ?? source.scan_id),
     publishedAt: optString(source.publishedAt ?? source.published_at),
     isStale: typeof source.isStale === 'boolean' ? source.isStale : Boolean(source.is_stale),
     scanStatus: (source.scanStatus ?? source.scan_status) as StashTabsResponse['scanStatus'],
-    stashTabs: rawTabs.map(normalizeStashTab),
-    tabsMeta,
+    stashTabs,
+    tabsMeta: effectiveTabsMeta,
     numTabs,
   };
 }

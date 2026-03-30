@@ -11,12 +11,14 @@ const {
   startStashScanMock,
   getStashScanStatusMock,
   getStashItemHistoryMock,
+  startStashValuationsMock,
 } = vi.hoisted(() => ({
   getStashStatusMock: vi.fn(),
   getStashTabsMock: vi.fn(),
   startStashScanMock: vi.fn(),
   getStashScanStatusMock: vi.fn(),
   getStashItemHistoryMock: vi.fn(),
+  startStashValuationsMock: vi.fn(),
 }));
 
 vi.mock('../shared/RenderState', () => ({
@@ -58,6 +60,7 @@ vi.mock('../../services/api', () => ({
     startStashScan: startStashScanMock,
     getStashScanStatus: getStashScanStatusMock,
     getStashItemHistory: getStashItemHistoryMock,
+    startStashValuations: startStashValuationsMock,
   },
 }));
 
@@ -146,6 +149,12 @@ beforeEach(() => {
         fallbackReason: '',
       },
     ],
+  });
+  startStashValuationsMock.mockResolvedValue({
+    structuredMode: true,
+    stashId: 'scan-2',
+    items: [{ fingerprint: 'sig:item-1', chaosMedian: 45 }],
+    chaosMedian: 45,
   });
 });
 
@@ -248,6 +257,78 @@ describe('StashViewerTab', () => {
     });
 
     expect(getStashTabsMock).toHaveBeenCalledTimes(2);
+    expect(startStashValuationsMock).toHaveBeenCalledWith({
+      scanId: 'scan-2',
+      structuredMode: true,
+      minThreshold: 0,
+      maxThreshold: 99999,
+      maxAgeDays: 7,
+    });
+  });
+
+  test('selects the requested tab instead of always using the first returned tab', async () => {
+    getStashTabsMock.mockResolvedValue({
+      scanId: 'scan-1',
+      publishedAt: '2026-03-21T12:00:00Z',
+      isStale: false,
+      scanStatus: null,
+      stashTabs: [
+        {
+          id: 'tab-1',
+          name: 'Empty',
+          type: 'normal',
+          items: [],
+        },
+        {
+          id: 'tab-2',
+          name: 'Gear',
+          type: 'normal',
+          items: [
+            {
+              id: 'item-1',
+              fingerprint: 'sig:item-1',
+              name: 'Grim Bane',
+              x: 0,
+              y: 0,
+              w: 1,
+              h: 1,
+              itemClass: 'Helmet',
+              rarity: 'rare',
+              listedPrice: 40,
+              estimatedPrice: 45,
+              estimatedPriceConfidence: 82,
+              priceDeltaChaos: 5,
+              priceDeltaPercent: 12.5,
+              priceEvaluation: 'mispriced',
+              currency: 'chaos',
+              iconUrl: 'https://web.poecdn.com/item.png',
+              interval: { p10: 39, p90: 51 },
+            },
+          ],
+        },
+      ],
+      tabsMeta: [
+        { id: 'tab-1', tabIndex: 0, name: 'Empty', type: 'normal' },
+        { id: 'tab-2', tabIndex: 1, name: 'Gear', type: 'normal' },
+      ],
+      numTabs: 2,
+    });
+
+    render(<StashViewerTab />);
+
+    await waitFor(() => {
+      const tabs = screen.getAllByTestId(/stash-tab-/);
+      expect(tabs[0]).toHaveTextContent('Empty');
+      expect(tabs[1]).toHaveTextContent('Gear');
+    });
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('stash-tab-tab-2'));
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(await screen.findByAltText('Grim Bane')).toBeInTheDocument();
   });
 
   test('shows stash data even when scan status reports 0 progress', async () => {

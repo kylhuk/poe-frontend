@@ -171,4 +171,38 @@ describe('stash api methods', () => {
     expect(history.history[0].interval.p10).toBe(39);
     expect(fetchMock).toHaveBeenCalledTimes(3);
   });
+
+  test('derives tabsMeta from stashTabs when backend omits tab metadata', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({ primary_league: 'Mirage' }),
+      } as Response)
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          scanId: 'scan-2',
+          publishedAt: '2026-03-21T12:03:00Z',
+          isStale: false,
+          scanStatus: null,
+          stashTabs: [
+            { id: 'tab-1', name: 'Empty', type: 'normal', items: [] },
+            { id: 'tab-2', name: 'Gear', type: 'normal', items: [] },
+          ],
+        }),
+      } as Response);
+    vi.stubGlobal('fetch', fetchMock);
+
+    const api = await loadApi();
+    const result = await api.getStashTabs(1);
+
+    expect(result.tabsMeta).toEqual([
+      { id: 'tab-1', tabIndex: 0, name: 'Empty', type: 'normal' },
+      { id: 'tab-2', tabIndex: 1, name: 'Gear', type: 'normal' },
+    ]);
+    expect(result.stashTabs[1].returnedIndex).toBe(1);
+  });
 });

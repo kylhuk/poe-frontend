@@ -58,6 +58,16 @@ const EMPTY_SCAN_STATUS: StashScanStatus = {
   },
 };
 
+function pickReturnedTab(payload: { stashTabs: StashTab[] }, requestedIndex: number): StashTab | null {
+  if (payload.stashTabs.length === 0) {
+    return null;
+  }
+  return payload.stashTabs.find((tab) => tab.returnedIndex === requestedIndex)
+    ?? payload.stashTabs[requestedIndex]
+    ?? payload.stashTabs[0]
+    ?? null;
+}
+
 function getSpecialLayout(tab: StashTab): SpecialLayout | null {
   return tab.currencyLayout
     ?? tab.fragmentLayout
@@ -97,8 +107,8 @@ const StashViewerTab = forwardRef<HTMLDivElement, Record<string, never>>(functio
     setTabMismatch(null);
     try {
       const payload = await api.getStashTabs(tabIndex);
-      if (payload.stashTabs.length > 0) {
-        const returned = payload.stashTabs[0];
+      const returned = pickReturnedTab(payload, tabIndex);
+      if (returned) {
         setActiveTab(returned);
         // Detect mismatch: backend returned a different tab than requested
         if (returned.returnedIndex != null && returned.returnedIndex !== tabIndex) {
@@ -169,6 +179,7 @@ const StashViewerTab = forwardRef<HTMLDivElement, Record<string, never>>(functio
             try {
               const valResult = await api.startStashValuations({
                 scanId,
+                structuredMode: true,
                 minThreshold: 0,
                 maxThreshold: 99999,
                 maxAgeDays: 7,
