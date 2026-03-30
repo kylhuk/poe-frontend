@@ -1,30 +1,30 @@
 import React, { forwardRef, useCallback, useEffect, useState } from 'react';
-import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { api } from '@/services/api';
 import type {
-  StashItem,
+  PoeItem,
   StashItemHistoryResponse,
   StashScanStatus,
   StashScanValuationsResponse,
   StashStatus,
   StashTab,
   StashTabMeta,
-  PriceEvaluation,
   SpecialLayout,
 } from '@/types/api';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import {
-  Coins, Diamond, CircleDot, FlaskConical, Sword, ShieldHalf,
-  FileText, Shirt, HardHat, Crown, ChevronDown, Copy, Loader2, History, type LucideIcon,
+  ChevronDown, Copy, Loader2, History, Coins, Settings2, type LucideIcon,
 } from 'lucide-react';
 import { RenderState } from '@/components/shared/RenderState';
 import NormalGrid from '@/components/stash/NormalGrid';
 import SpecialLayoutGrid from '@/components/stash/SpecialLayoutGrid';
 import SpecialGrid from '@/components/stash/SpecialGrid';
+import PriceSparkline from '@/components/economy/PriceSparkline';
 
 const FLOW_GRID_TYPES = new Set([
   'currency', 'map', 'fragment', 'essence', 'divination',
@@ -83,6 +83,38 @@ function getSpecialLayout(tab: StashTab): SpecialLayout | null {
     ?? null;
 }
 
+/** Merge valuation items into displayed PoeItems by id or fingerprint */
+function mergeValuationIntoItems(items: PoeItem[], valItems: Record<string, unknown>[]): PoeItem[] {
+  const byFingerprint = new Map<string, Record<string, unknown>>();
+  const byId = new Map<string, Record<string, unknown>>();
+  for (const vi of valItems) {
+    const fp = vi.fingerprint as string | undefined;
+    const id = vi.id as string | undefined;
+    if (fp) byFingerprint.set(fp, vi);
+    if (id) byId.set(id, vi);
+  }
+
+  return items.map(item => {
+    const match = (item.fingerprint && byFingerprint.get(item.fingerprint)) || byId.get(item.id);
+    if (!match) return item;
+    return {
+      ...item,
+      estimatedPrice: typeof match.estimatedPrice === 'number' ? match.estimatedPrice
+        : (typeof match.estimated_price === 'number' ? match.estimated_price : item.estimatedPrice),
+      estimatedPriceConfidence: typeof match.estimatedPriceConfidence === 'number' ? match.estimatedPriceConfidence
+        : (typeof match.estimated_price_confidence === 'number' ? match.estimated_price_confidence : item.estimatedPriceConfidence),
+      listedPrice: typeof match.listedPrice === 'number' ? match.listedPrice
+        : (typeof match.listed_price === 'number' ? match.listed_price : item.listedPrice),
+      priceDeltaChaos: typeof match.priceDeltaChaos === 'number' ? match.priceDeltaChaos
+        : (typeof match.price_delta_chaos === 'number' ? match.price_delta_chaos : item.priceDeltaChaos),
+      priceDeltaPercent: typeof match.priceDeltaPercent === 'number' ? match.priceDeltaPercent
+        : (typeof match.price_delta_percent === 'number' ? match.price_delta_percent : item.priceDeltaPercent),
+      priceEvaluation: (match.priceEvaluation ?? match.price_evaluation ?? item.priceEvaluation) as PoeItem['priceEvaluation'],
+      currency: (typeof match.currency === 'string' ? match.currency : item.currency),
+    };
+  });
+}
+
 const StashViewerTab = forwardRef<HTMLDivElement, Record<string, never>>(function StashViewerTab(_props, ref) {
   const [tabsMeta, setTabsMeta] = useState<StashTabMeta[]>([]);
   const [activeTab, setActiveTab] = useState<StashTab | null>(null);
@@ -91,6 +123,7 @@ const StashViewerTab = forwardRef<HTMLDivElement, Record<string, never>>(functio
   const [tabMismatch, setTabMismatch] = useState<string | null>(null);
   const [status, setStatus] = useState<StashStatus['status'] | 'loading' | 'degraded'>('loading');
   const [schemaOpen, setSchemaOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [publishedScanId, setPublishedScanId] = useState<string | null>(null);
   const [publishedAt, setPublishedAt] = useState<string | null>(null);
@@ -102,6 +135,42 @@ const StashViewerTab = forwardRef<HTMLDivElement, Record<string, never>>(functio
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyPayload, setHistoryPayload] = useState<StashItemHistoryResponse | null>(null);
 
+  // Threshold configuration
+  const [minThreshold, setMinThreshold] = useState(4);
+  const [maxThreshold, setMaxThreshold] = useState(8);
+  const [maxAgeDays, setMaxAgeDays] = useState(7);
+
+  const runValuation = useCallback(async (scanId: string) => {
+    setValuationPhase('running');
+    try {
+      const valResult = await api.startStashValuations({
+        scanId,
+        structuredMode: true,
+        minThreshold,
+        maxThreshold,
+        maxAgeDays,
+      });
+      setValuationResult(valResult);
+      setValuationPhase('done');
+
+      // Merge valuation pricing into active tab items
+      if (valResult.items?.length) {
+        setActiveTab(prev => {
+          if (!prev) return prev;
+          return {
+            ...prev,
+            items: mergeValuationIntoItems(prev.items, valResult.items),
+          };
+        });
+      }
+
+      toast.success('Valuations complete');
+    } catch (valErr) {
+      setValuationPhase('failed');
+      toast.error(valErr instanceof Error ? valErr.message : 'Valuation failed');
+    }
+  }, [minThreshold, maxThreshold, maxAgeDays]);
+
   const loadTab = useCallback(async (tabIndex: number) => {
     setTabLoading(true);
     setTabMismatch(null);
@@ -110,14 +179,12 @@ const StashViewerTab = forwardRef<HTMLDivElement, Record<string, never>>(functio
       const returned = pickReturnedTab(payload, tabIndex);
       if (returned) {
         setActiveTab(returned);
-        // Detect mismatch: backend returned a different tab than requested
         if (returned.returnedIndex != null && returned.returnedIndex !== tabIndex) {
           setTabMismatch(`Requested tab index ${tabIndex}, but backend returned index ${returned.returnedIndex} ("${returned.name}")`);
         }
       } else {
         setActiveTab(null);
       }
-      // Update tabsMeta if returned (first load or refresh)
       if (payload.tabsMeta.length > 0) {
         setTabsMeta(payload.tabsMeta);
       }
@@ -175,22 +242,7 @@ const StashViewerTab = forwardRef<HTMLDivElement, Record<string, never>>(functio
           // Phase 2: trigger valuations
           const scanId = next.publishedScanId ?? scanStatus.activeScanId;
           if (scanId) {
-            setValuationPhase('running');
-            try {
-              const valResult = await api.startStashValuations({
-                scanId,
-                structuredMode: true,
-                minThreshold: 0,
-                maxThreshold: 99999,
-                maxAgeDays: 7,
-              });
-              setValuationResult(valResult);
-              setValuationPhase('done');
-              toast.success('Valuations complete');
-            } catch (valErr) {
-              setValuationPhase('failed');
-              toast.error(valErr instanceof Error ? valErr.message : 'Valuation failed');
-            }
+            await runValuation(scanId);
           }
         }
         if (next.status === 'failed') {
@@ -207,7 +259,7 @@ const StashViewerTab = forwardRef<HTMLDivElement, Record<string, never>>(functio
       }
     }, 1500);
     return () => window.clearInterval(timer);
-  }, [scanBusy, loadTab, activeTabIndex, scanStatus.activeScanId]);
+  }, [scanBusy, loadTab, activeTabIndex, scanStatus.activeScanId, runValuation]);
 
   const startScan = useCallback(async () => {
     try {
@@ -229,7 +281,16 @@ const StashViewerTab = forwardRef<HTMLDivElement, Record<string, never>>(functio
     }
   }, []);
 
-  const openHistory = useCallback(async (item: StashItem) => {
+  const startValuateOnly = useCallback(async () => {
+    const scanId = publishedScanId;
+    if (!scanId) {
+      toast.error('No published scan to valuate. Run a scan first.');
+      return;
+    }
+    await runValuation(scanId);
+  }, [publishedScanId, runValuation]);
+
+  const openHistory = useCallback(async (item: PoeItem) => {
     if (!item.fingerprint) {
       return;
     }
@@ -255,7 +316,6 @@ const StashViewerTab = forwardRef<HTMLDivElement, Record<string, never>>(functio
     const iv = window.setInterval(async () => {
       try {
         const st = await pollStatus();
-        // If connected but no tab loaded yet, retry loading
         if (st.connected && !activeTabRef.current) {
           await loadTab(activeTabIndexRef.current);
         }
@@ -279,10 +339,23 @@ const StashViewerTab = forwardRef<HTMLDivElement, Record<string, never>>(functio
   const runningScan = scanBusy || scanStatus.status === 'running' || scanStatus.status === 'publishing';
   const anyPhaseBusy = runningScan || valuationPhase === 'running';
 
+  // Convert daySeries to sparkline points
+  const daySeriesPoints = valuationResult?.daySeries?.map(d => ({
+    timestamp: d.date,
+    value: d.chaosMedian ?? 0,
+  })).filter(p => p.value > 0) ?? [];
+
+  // History sparkline from historyPayload
+  const historySparklinePoints = historyPayload?.history?.map(h => ({
+    timestamp: h.pricedAt,
+    value: h.predictedValue,
+  })) ?? [];
+
   return (
     <div ref={ref} className="space-y-3" data-testid="panel-stash-root">
+      {/* Header bar */}
       <div className="flex flex-col gap-3 rounded border border-gold-dim/20 bg-card/60 p-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="space-y-1">
+        <div className="space-y-1 flex-1">
           <p className="text-sm font-semibold text-foreground">Private Stash</p>
           <p className="text-xs text-muted-foreground">
             {publishedScanId ? `Published ${publishedScanId}` : 'No published scan yet'}
@@ -304,21 +377,99 @@ const StashViewerTab = forwardRef<HTMLDivElement, Record<string, never>>(functio
             </p>
           )}
           {valuationPhase === 'done' && (
-            <p className="text-xs text-success">
-              Valuations complete{valuationResult?.items?.length ? ` · ${valuationResult.items.length} items priced` : ''}
-              {valuationResult?.chaosMedian != null ? ` · median ${valuationResult.chaosMedian}c` : ''}
-            </p>
+            <div className="flex items-center gap-3">
+              <p className="text-xs text-success">
+                Valuations complete{valuationResult?.items?.length ? ` · ${valuationResult.items.length} items priced` : ''}
+                {valuationResult?.chaosMedian != null ? ` · median ${valuationResult.chaosMedian}c` : ''}
+              </p>
+              {daySeriesPoints.length >= 2 && (
+                <PriceSparkline points={daySeriesPoints} width={100} height={24} />
+              )}
+            </div>
           )}
           {valuationPhase === 'failed' && (
             <p className="text-xs text-destructive">Valuation failed</p>
           )}
+
+          {/* Affix fallback medians */}
+          {valuationResult?.affixFallbackMedians && valuationResult.affixFallbackMedians.length > 0 && (
+            <div className="flex items-center gap-2 flex-wrap mt-1">
+              <span className="text-[10px] text-muted-foreground">Affix medians:</span>
+              {valuationResult.affixFallbackMedians.map(af => (
+                <span key={af.affix} className="text-[10px] font-mono text-muted-foreground bg-muted/30 px-1 rounded">
+                  {af.affix}: {af.chaosMedian}c
+                </span>
+              ))}
+            </div>
+          )}
         </div>
-        <Button onClick={startScan} disabled={anyPhaseBusy} className="gap-2" aria-label="Scan">
-          {anyPhaseBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <History className="h-3.5 w-3.5" />}
-          Scan
-        </Button>
+
+        {/* Action buttons */}
+        <div className="flex items-center gap-2 shrink-0">
+          <Button onClick={startScan} disabled={anyPhaseBusy} className="gap-2" aria-label="Scan">
+            {runningScan ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <History className="h-3.5 w-3.5" />}
+            Scan
+          </Button>
+          <Button
+            onClick={startValuateOnly}
+            disabled={anyPhaseBusy || !publishedScanId}
+            variant="outline"
+            className="gap-2"
+            aria-label="Valuate"
+          >
+            {valuationPhase === 'running' ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Coins className="h-3.5 w-3.5" />}
+            Valuate
+          </Button>
+        </div>
       </div>
 
+      {/* Threshold configuration */}
+      <Collapsible open={settingsOpen} onOpenChange={setSettingsOpen}>
+        <CollapsibleTrigger asChild>
+          <Button variant="ghost" size="sm" className="text-xs text-muted-foreground gap-1.5">
+            <Settings2 className={cn('h-3 w-3')} />
+            Valuation Settings
+            <ChevronDown className={cn('h-3 w-3 transition-transform', settingsOpen && 'rotate-180')} />
+          </Button>
+        </CollapsibleTrigger>
+        <CollapsibleContent>
+          <div className="flex items-end gap-4 flex-wrap mt-2 rounded border border-gold-dim/20 bg-card/40 p-3">
+            <div className="space-y-1">
+              <Label className="text-[10px] text-muted-foreground">Min Threshold (chaos)</Label>
+              <Input
+                type="number"
+                value={minThreshold}
+                onChange={e => setMinThreshold(Number(e.target.value))}
+                className="w-24 h-8 text-xs"
+                min={0}
+              />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-[10px] text-muted-foreground">Max Threshold (chaos)</Label>
+              <Input
+                type="number"
+                value={maxThreshold}
+                onChange={e => setMaxThreshold(Number(e.target.value))}
+                className="w-24 h-8 text-xs"
+                min={0}
+              />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-[10px] text-muted-foreground">Max Age (days)</Label>
+              <Input
+                type="number"
+                value={maxAgeDays}
+                onChange={e => setMaxAgeDays(Number(e.target.value))}
+                className="w-24 h-8 text-xs"
+                min={1}
+                max={90}
+              />
+            </div>
+          </div>
+        </CollapsibleContent>
+      </Collapsible>
+
+      {/* Tab navigation */}
       <div className="flex items-end gap-0 flex-wrap">
         {tabsMeta.map((t, i) => (
           <button
@@ -355,15 +506,16 @@ const StashViewerTab = forwardRef<HTMLDivElement, Record<string, never>>(functio
           ⚠ {tabMismatch}
         </div>
       )}
+
       {/* Grid / Special layout rendering */}
       {tab && specialLayout && (
-        <SpecialLayoutGrid items={tab.items} layout={specialLayout} />
+        <SpecialLayoutGrid items={tab.items} layout={specialLayout} onItemClick={openHistory} />
       )}
       {tab && !specialLayout && FLOW_GRID_TYPES.has(tab.type) && (
-        <SpecialGrid items={tab.items} tabType={tab.type} />
+        <SpecialGrid items={tab.items} tabType={tab.type} onItemClick={openHistory} />
       )}
       {tab && isGrid && !FLOW_GRID_TYPES.has(tab.type) && (
-        <NormalGrid items={tab.items} gridSize={gridSize} />
+        <NormalGrid items={tab.items} gridSize={gridSize} onItemClick={openHistory} />
       )}
 
       {/* Legend */}
@@ -372,6 +524,7 @@ const StashViewerTab = forwardRef<HTMLDivElement, Record<string, never>>(functio
           <span className="flex items-center gap-1"><span className="w-3 h-2 rounded-sm bg-success/30" /> Well priced</span>
           <span className="flex items-center gap-1"><span className="w-3 h-2 rounded-sm bg-warning/30" /> Could be better</span>
           <span className="flex items-center gap-1"><span className="w-3 h-2 rounded-sm bg-destructive/30" /> Mispriced</span>
+          <span className="text-[9px] italic">Click item for price history</span>
         </div>
       )}
 
@@ -399,28 +552,51 @@ const StashViewerTab = forwardRef<HTMLDivElement, Record<string, never>>(functio
         </CollapsibleContent>
       </Collapsible>
 
+      {/* History dialog */}
       <Dialog open={historyOpen} onOpenChange={setHistoryOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>{historyPayload?.item.name || 'Item history'}</DialogTitle>
             <DialogDescription>
               {historyPayload?.item.itemClass || ''}
+              {historyPayload?.item.rarity ? ` · ${historyPayload.item.rarity}` : ''}
             </DialogDescription>
           </DialogHeader>
           {historyLoading && <p className="text-sm text-muted-foreground">Loading history...</p>}
           {!historyLoading && historyPayload && (
             <div className="space-y-3">
+              {/* Sparkline of historical prices */}
+              {historySparklinePoints.length >= 2 && (
+                <div className="flex items-center gap-2 p-2 rounded bg-muted/20 border border-border">
+                  <span className="text-[10px] text-muted-foreground">Price trend</span>
+                  <PriceSparkline points={historySparklinePoints} width={200} height={32} />
+                </div>
+              )}
               {historyPayload.history.map(entry => (
                 <div key={`${entry.scanId}-${entry.pricedAt}`} className="rounded border border-border p-3 text-sm">
                   <div className="flex items-center justify-between gap-3">
-                    <span className="font-medium">{entry.predictedValue}{entry.currency === 'div' ? ' div' : ' c'}</span>
-                    <span className="text-xs text-muted-foreground">{entry.pricedAt}</span>
+                    <span className="font-medium font-mono">
+                      {entry.predictedValue}{entry.currency === 'div' ? ' div' : ' c'}
+                    </span>
+                    {entry.listedPrice != null && (
+                      <span className="text-xs text-muted-foreground font-mono">
+                        listed: {entry.listedPrice}{entry.currency === 'div' ? ' div' : ' c'}
+                      </span>
+                    )}
+                    <span className="text-xs text-muted-foreground ml-auto">{entry.pricedAt}</span>
                   </div>
                   <div className="mt-1 text-xs text-muted-foreground">
                     Confidence {entry.confidence}% · p10 {entry.interval.p10 ?? 'n/a'} · p90 {entry.interval.p90 ?? 'n/a'}
+                    {entry.estimateTrust ? ` · ${entry.estimateTrust}` : ''}
                   </div>
+                  {entry.estimateWarning && (
+                    <div className="mt-0.5 text-[10px] text-warning">{entry.estimateWarning}</div>
+                  )}
                 </div>
               ))}
+              {historyPayload.history.length === 0 && (
+                <p className="text-xs text-muted-foreground">No price history available for this item.</p>
+              )}
             </div>
           )}
         </DialogContent>

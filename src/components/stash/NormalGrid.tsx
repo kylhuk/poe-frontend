@@ -5,9 +5,10 @@ import StashItemCell from './StashItemCell';
 interface NormalGridProps {
   items: PoeItem[];
   gridSize: number; // 12 for normal, 24 for quad
+  onItemClick?: (item: PoeItem) => void;
 }
 
-export default function NormalGrid({ items, gridSize }: NormalGridProps) {
+export default function NormalGrid({ items, gridSize, onItemClick }: NormalGridProps) {
   const isQuad = gridSize === 24;
 
   return (
@@ -37,6 +38,7 @@ export default function NormalGrid({ items, gridSize }: NormalGridProps) {
             key={item.id}
             item={item}
             isQuad={isQuad}
+            onItemClick={onItemClick}
             style={{
               gridColumn: `${item.x + 1} / span ${item.w}`,
               gridRow: `${item.y + 1} / span ${item.h}`,

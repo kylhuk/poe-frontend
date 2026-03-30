@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import type { ButtonHTMLAttributes, HTMLAttributes } from 'react';
+import type { ButtonHTMLAttributes, HTMLAttributes, InputHTMLAttributes } from 'react';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import StashViewerTab from './StashViewerTab';
 
@@ -33,6 +33,14 @@ vi.mock('../ui/button', () => ({
   ),
 }));
 
+vi.mock('../ui/input', () => ({
+  Input: (props: InputHTMLAttributes<HTMLInputElement>) => <input {...props} />,
+}));
+
+vi.mock('../ui/label', () => ({
+  Label: ({ children, ...props }: HTMLAttributes<HTMLLabelElement>) => <label {...props}>{children}</label>,
+}));
+
 vi.mock('../ui/hover-card', () => ({
   HoverCard: ({ children }: HTMLAttributes<HTMLDivElement>) => <div>{children}</div>,
   HoverCardTrigger: ({ children }: HTMLAttributes<HTMLDivElement>) => <div>{children}</div>,
@@ -62,6 +70,10 @@ vi.mock('../../services/api', () => ({
     getStashItemHistory: getStashItemHistoryMock,
     startStashValuations: startStashValuationsMock,
   },
+}));
+
+vi.mock('../economy/PriceSparkline', () => ({
+  default: () => <svg data-testid="sparkline" />,
 }));
 
 const publishedTabsPayload = {
@@ -152,8 +164,9 @@ beforeEach(() => {
   });
   startStashValuationsMock.mockResolvedValue({
     structuredMode: true,
+    scanId: 'scan-2',
     stashId: 'scan-2',
-    items: [{ fingerprint: 'sig:item-1', chaosMedian: 45 }],
+    items: [{ fingerprint: 'sig:item-1', estimatedPrice: 45, chaosMedian: 45 }],
     chaosMedian: 45,
   });
 });
@@ -260,8 +273,8 @@ describe('StashViewerTab', () => {
     expect(startStashValuationsMock).toHaveBeenCalledWith({
       scanId: 'scan-2',
       structuredMode: true,
-      minThreshold: 0,
-      maxThreshold: 99999,
+      minThreshold: 4,
+      maxThreshold: 8,
       maxAgeDays: 7,
     });
   });
@@ -354,9 +367,7 @@ describe('StashViewerTab', () => {
 
     render(<StashViewerTab />);
 
-    // Stash grid should still render from previously loaded tab data
     expect(await screen.findByTestId('stash-panel-grid')).toBeInTheDocument();
-    // Should show soft message instead of scary 0/19
     expect(screen.getByText(/showing last available stash data/i)).toBeInTheDocument();
   });
 
@@ -375,7 +386,6 @@ describe('StashViewerTab', () => {
     render(<StashViewerTab />);
     await screen.findByTestId('stash-panel-grid');
 
-    // Click second tab (tabIndex=1)
     await act(async () => {
       fireEvent.click(screen.getByTestId('stash-tab-tab-9'));
       await Promise.resolve();
@@ -384,6 +394,34 @@ describe('StashViewerTab', () => {
 
     await waitFor(() => {
       expect(screen.getByTestId('tab-mismatch-warning')).toBeInTheDocument();
+    });
+  });
+
+  test('renders Valuate button that is enabled when a published scan exists', async () => {
+    render(<StashViewerTab />);
+    await screen.findByTestId('stash-panel-grid');
+
+    const valuateBtn = screen.getByRole('button', { name: /valuate/i });
+    expect(valuateBtn).toBeInTheDocument();
+    expect(valuateBtn).not.toBeDisabled();
+  });
+
+  test('Valuate button calls startStashValuations with current thresholds', async () => {
+    render(<StashViewerTab />);
+    await screen.findByTestId('stash-panel-grid');
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /valuate/i }));
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(startStashValuationsMock).toHaveBeenCalledWith({
+      scanId: 'scan-1',
+      structuredMode: true,
+      minThreshold: 4,
+      maxThreshold: 8,
+      maxAgeDays: 7,
     });
   });
 });

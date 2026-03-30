@@ -5,6 +5,7 @@ import StashItemCell from './StashItemCell';
 interface SpecialGridProps {
   items: PoeItem[];
   tabType: string;
+  onItemClick?: (item: PoeItem) => void;
 }
 
 /**
@@ -12,7 +13,7 @@ interface SpecialGridProps {
  * that don't have layout definitions. Items are sorted by slot index and
  * rendered in a responsive flex-wrap container.
  */
-export default function SpecialGrid({ items, tabType }: SpecialGridProps) {
+export default function SpecialGrid({ items, tabType, onItemClick }: SpecialGridProps) {
   const sorted = [...items].sort((a, b) => {
     if (a.y !== b.y) return a.y - b.y;
     return a.x - b.x;
@@ -26,6 +27,7 @@ export default function SpecialGrid({ items, tabType }: SpecialGridProps) {
             key={item.id}
             item={item}
             className="stash-flow-cell"
+            onItemClick={onItemClick}
           />
         ))}
         {sorted.length === 0 && (
