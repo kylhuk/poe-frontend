@@ -40,8 +40,8 @@ export default function ItemTooltip({ item }: ItemTooltipProps) {
   const safeName = item.name && item.name.toLowerCase() !== 'unknown' ? item.name : '';
   const displayName = safeName || (item.typeLine && item.typeLine.toLowerCase() !== 'unknown' ? item.typeLine : '');
   const showTypeLine = safeName && item.typeLine && item.typeLine.toLowerCase() !== 'unknown' && safeName !== item.typeLine;
-  const cur = item.currency === 'div' ? 'div' : item.currency === 'exa' ? 'exa' : 'c';
-  const listedCur = item.currency === 'div' ? 'div' : item.currency === 'exa' ? 'exa' : 'c';
+  const cur = formatCurrencyShort(item.currency);
+  const listedCur = formatCurrencyShort(item.currency);
 
   const hasMedian = item.estimatedPrice != null && item.estimatedPrice > 0;
   const hasAffixFallbacks = !hasMedian && item.affixFallbackMedians && item.affixFallbackMedians.length > 0;
