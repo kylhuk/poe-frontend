@@ -183,8 +183,19 @@ const StashViewerTab = forwardRef<HTMLDivElement, Record<string, never>>(functio
     setTabMismatch(null);
     try {
       const payload = await api.getStashTabs(tabIndex);
+      console.log('[Stash] Tab payload keys:', Object.keys(payload));
       const returned = pickReturnedTab(payload, tabIndex);
       if (returned) {
+        console.log('[Stash] Active tab items count:', returned.items.length);
+        if (returned.items.length > 0) {
+          const sample = returned.items[0];
+          console.log('[Stash] Sample item fields:', {
+            id: sample.id, fingerprint: sample.fingerprint, name: sample.name,
+            estimatedPrice: sample.estimatedPrice, listedPrice: sample.listedPrice,
+            priceEvaluation: sample.priceEvaluation, priceDeltaChaos: sample.priceDeltaChaos,
+            currency: sample.currency,
+          });
+        }
         setActiveTab(returned);
         if (returned.returnedIndex != null && returned.returnedIndex !== tabIndex) {
           setTabMismatch(`Requested tab index ${tabIndex}, but backend returned index ${returned.returnedIndex} ("${returned.name}")`);
