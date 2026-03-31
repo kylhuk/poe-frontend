@@ -227,43 +227,51 @@ const StashViewerTab = forwardRef<HTMLDivElement, Record<string, never>>(functio
   const [maxThreshold, setMaxThreshold] = useState(8);
   const [maxAgeDays, setMaxAgeDays] = useState(7);
 
-  const runValuation = useCallback(async (scanId: string) => {
-    setValuationPhase('running');
+  /** Fetch existing valuation results (no computation) */
+  const fetchValuationResults = useCallback(async () => {
     try {
-      const valResult = await api.startStashValuations({
-        scanId,
-        structuredMode: true,
-        minThreshold,
-        maxThreshold,
-        maxAgeDays,
-      });
+      const valResult = await api.getStashValuationsResult();
       setValuationResult(valResult);
-      setValuationPhase('done');
-
-      // Debug: log what the valuation API returned
-      console.log('[Stash] Valuation response keys:', Object.keys(valResult));
+      console.log('[Stash] Valuation result keys:', Object.keys(valResult));
       console.log('[Stash] Valuation items count:', valResult.items?.length ?? 0);
-      if (valResult.items?.length) {
-        console.log('[Stash] First 3 valuation items:', valResult.items.slice(0, 3));
-      }
-
-      // Merge valuation pricing into active tab items
       if (valResult.items?.length) {
         setActiveTab(prev => {
           if (!prev) return prev;
-          return {
-            ...prev,
-            items: mergeValuationIntoItems(prev.items, valResult.items),
-          };
+          return { ...prev, items: mergeValuationIntoItems(prev.items, valResult.items) };
         });
       }
+    } catch (err) {
+      console.warn('[Stash] No existing valuation results:', err instanceof Error ? err.message : err);
+    }
+  }, []);
 
+  /** Start a new valuation computation and poll until done */
+  const runValuation = useCallback(async () => {
+    setValuationPhase('running');
+    try {
+      await api.startStashValuationsNew();
+      // Poll valuation status
+      const poll = async (): Promise<void> => {
+        const vs = await api.getStashValuationsStatus();
+        if (vs.status === 'published' || vs.status === 'idle') {
+          return;
+        }
+        if (vs.status === 'failed') {
+          throw new Error(vs.error ?? 'Valuation failed');
+        }
+        await new Promise(r => setTimeout(r, 1500));
+        return poll();
+      };
+      await poll();
+      // Fetch final results
+      await fetchValuationResults();
+      setValuationPhase('done');
       toast.success('Valuations complete');
     } catch (valErr) {
       setValuationPhase('failed');
       toast.error(valErr instanceof Error ? valErr.message : 'Valuation failed');
     }
-  }, [minThreshold, maxThreshold, maxAgeDays]);
+  }, [fetchValuationResults]);
 
   const valuationResultRef = React.useRef(valuationResult);
   valuationResultRef.current = valuationResult;
@@ -272,14 +280,12 @@ const StashViewerTab = forwardRef<HTMLDivElement, Record<string, never>>(functio
     setTabLoading(true);
     setTabMismatch(null);
     try {
-      const payload = await api.getStashTabs(tabIndex);
+      const payload = await api.getStashScanResult(tabIndex);
       console.log('[Stash] Tab payload keys:', Object.keys(payload));
       const returned = pickReturnedTab(payload, tabIndex);
       if (returned) {
         console.log('[Stash] Active tab items count:', returned.items.length);
-        // Apply tab-level pricing from tab name (e.g. "~price 12 chaos")
         returned.items = applyTabLevelPricing(returned.items, returned.name);
-        // Re-merge existing valuation data if available
         const currentValuation = valuationResultRef.current;
         if (currentValuation?.items?.length) {
           returned.items = mergeValuationIntoItems(returned.items, currentValuation.items);
@@ -334,18 +340,15 @@ const StashViewerTab = forwardRef<HTMLDivElement, Record<string, never>>(functio
         const stashStatus = await pollStatus();
         if (stashStatus.connected) {
           await loadTab(0);
-          // Auto-fetch existing valuation results if a scan was already published
-          const scanId = stashStatus.publishedScanId ?? stashStatus.scanStatus?.publishedScanId;
-          if (scanId) {
-            await runValuation(scanId);
-          }
+          // Always fetch existing valuation results on load (instant, no computation)
+          await fetchValuationResults();
         }
       } catch (err: unknown) {
         setError(err instanceof Error ? err.message : 'Stash feature unavailable');
         setStatus('degraded');
       }
     })();
-  }, [pollStatus, loadTab, runValuation]);
+  }, [pollStatus, loadTab, fetchValuationResults]);
 
   useEffect(() => {
     if (!scanBusy) {
@@ -359,11 +362,8 @@ const StashViewerTab = forwardRef<HTMLDivElement, Record<string, never>>(functio
           window.clearInterval(timer);
           setScanBusy(false);
           await loadTab(activeTabIndex);
-          // Phase 2: trigger valuations
-          const scanId = next.publishedScanId ?? scanStatus.activeScanId;
-          if (scanId) {
-            await runValuation(scanId);
-          }
+          // Phase 2: trigger valuations (start computation + poll + fetch results)
+          await runValuation();
         }
         if (next.status === 'failed') {
           window.clearInterval(timer);
@@ -379,7 +379,7 @@ const StashViewerTab = forwardRef<HTMLDivElement, Record<string, never>>(functio
       }
     }, 1500);
     return () => window.clearInterval(timer);
-  }, [scanBusy, loadTab, activeTabIndex, scanStatus.activeScanId, runValuation]);
+  }, [scanBusy, loadTab, activeTabIndex, runValuation]);
 
   const startScan = useCallback(async () => {
     try {
@@ -402,12 +402,11 @@ const StashViewerTab = forwardRef<HTMLDivElement, Record<string, never>>(functio
   }, []);
 
   const startValuateOnly = useCallback(async () => {
-    const scanId = publishedScanId;
-    if (!scanId) {
+    if (!publishedScanId) {
       toast.error('No published scan to valuate. Run a scan first.');
       return;
     }
-    await runValuation(scanId);
+    await runValuation();
   }, [publishedScanId, runValuation]);
 
   const openHistory = useCallback(async (item: PoeItem) => {

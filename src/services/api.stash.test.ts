@@ -172,7 +172,7 @@ describe('stash api methods', () => {
     expect(fetchMock).toHaveBeenCalledTimes(3);
   });
 
-  test('derives tabsMeta from stashTabs when backend omits tab metadata', async () => {
+  test('derives tabsMeta from stashTabs when backend omits tab metadata (via scan/result)', async () => {
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce({
@@ -197,7 +197,7 @@ describe('stash api methods', () => {
     vi.stubGlobal('fetch', fetchMock);
 
     const api = await loadApi();
-    const result = await api.getStashTabs(1);
+    const result = await api.getStashScanResult(1);
 
     expect(result.tabsMeta).toEqual([
       { id: 'tab-1', tabIndex: 0, name: 'Empty', type: 'normal' },
