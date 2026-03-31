@@ -402,12 +402,11 @@ const StashViewerTab = forwardRef<HTMLDivElement, Record<string, never>>(functio
   }, []);
 
   const startValuateOnly = useCallback(async () => {
-    const scanId = publishedScanId;
-    if (!scanId) {
+    if (!publishedScanId) {
       toast.error('No published scan to valuate. Run a scan first.');
       return;
     }
-    await runValuation(scanId);
+    await runValuation();
   }, [publishedScanId, runValuation]);
 
   const openHistory = useCallback(async (item: PoeItem) => {
