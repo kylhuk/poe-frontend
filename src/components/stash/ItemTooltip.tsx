@@ -1,6 +1,7 @@
 import React from 'react';
 import type { PoeItem } from '@/types/api';
 import { cn } from '@/lib/utils';
+import { formatCurrencyShort } from '@/lib/currency';
 import PriceSparkline from '@/components/economy/PriceSparkline';
 
 const FRAME_HEADER_CLASS: Record<number, string> = {
