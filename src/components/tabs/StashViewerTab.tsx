@@ -265,6 +265,9 @@ const StashViewerTab = forwardRef<HTMLDivElement, Record<string, never>>(functio
     }
   }, [minThreshold, maxThreshold, maxAgeDays]);
 
+  const valuationResultRef = React.useRef(valuationResult);
+  valuationResultRef.current = valuationResult;
+
   const loadTab = useCallback(async (tabIndex: number) => {
     setTabLoading(true);
     setTabMismatch(null);
@@ -276,6 +279,11 @@ const StashViewerTab = forwardRef<HTMLDivElement, Record<string, never>>(functio
         console.log('[Stash] Active tab items count:', returned.items.length);
         // Apply tab-level pricing from tab name (e.g. "~price 12 chaos")
         returned.items = applyTabLevelPricing(returned.items, returned.name);
+        // Re-merge existing valuation data if available
+        const currentValuation = valuationResultRef.current;
+        if (currentValuation?.items?.length) {
+          returned.items = mergeValuationIntoItems(returned.items, currentValuation.items);
+        }
         if (returned.items.length > 0) {
           const sample = returned.items[0];
           console.log('[Stash] Sample item fields:', {
