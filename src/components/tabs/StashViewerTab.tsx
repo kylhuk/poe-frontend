@@ -362,11 +362,8 @@ const StashViewerTab = forwardRef<HTMLDivElement, Record<string, never>>(functio
           window.clearInterval(timer);
           setScanBusy(false);
           await loadTab(activeTabIndex);
-          // Phase 2: trigger valuations
-          const scanId = next.publishedScanId ?? scanStatus.activeScanId;
-          if (scanId) {
-            await runValuation(scanId);
-          }
+          // Phase 2: trigger valuations (start computation + poll + fetch results)
+          await runValuation();
         }
         if (next.status === 'failed') {
           window.clearInterval(timer);
