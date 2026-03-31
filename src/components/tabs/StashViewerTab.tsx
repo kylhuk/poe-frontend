@@ -173,16 +173,20 @@ function mergeValuationIntoItems(items: PoeItem[], valItems: Record<string, unkn
 
     const estimatedPrice = chaosMedian != null && chaosMedian > 0 ? chaosMedian : 0;
 
+    // Determine currency — prefer item's own, fall back to valuation's
+    const itemCurrency = item.currency ?? (typeof match.currency === 'string' ? match.currency : undefined);
+
     // Compute evaluation client-side: only when chaosMedian exists
     const priceEvaluation = chaosMedian != null && chaosMedian > 0
-      ? computeEvaluation(item.listedPrice, chaosMedian)
+      ? computeEvaluation(item.listedPrice, chaosMedian, itemCurrency)
       : undefined;
 
-    // Compute delta
-    const priceDeltaChaos = (chaosMedian && chaosMedian > 0 && item.listedPrice != null)
-      ? Math.round(item.listedPrice - chaosMedian) : null;
-    const priceDeltaPercent = (chaosMedian && chaosMedian > 0 && item.listedPrice != null)
-      ? Math.round(((item.listedPrice - chaosMedian) / chaosMedian) * 100) : null;
+    // Compute delta in chaos (normalise listedPrice to chaos first)
+    const listedChaos = (item.listedPrice != null) ? toChaos(item.listedPrice, itemCurrency) : null;
+    const priceDeltaChaos = (chaosMedian && chaosMedian > 0 && listedChaos != null)
+      ? Math.round(listedChaos - chaosMedian) : null;
+    const priceDeltaPercent = (chaosMedian && chaosMedian > 0 && listedChaos != null)
+      ? Math.round(((listedChaos - chaosMedian) / chaosMedian) * 100) : null;
 
     return {
       ...item,
@@ -193,7 +197,7 @@ function mergeValuationIntoItems(items: PoeItem[], valItems: Record<string, unkn
       priceEvaluation,
       priceDeltaChaos,
       priceDeltaPercent,
-      currency: (typeof match.currency === 'string' ? match.currency : item.currency),
+      currency: itemCurrency,
     };
   });
 }
