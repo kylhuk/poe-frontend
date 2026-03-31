@@ -185,7 +185,7 @@ export default function ItemTooltip({ item }: ItemTooltipProps) {
             <div className="space-y-0.5 pt-0.5">
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Median</span>
-                <span className="font-mono text-gold-bright">{item.estimatedPrice} {cur}</span>
+                <span className="font-mono text-gold-bright">{item.estimatedPrice}c</span>
               </div>
               {item.listedPrice != null && (
                 <div className="flex justify-between">
