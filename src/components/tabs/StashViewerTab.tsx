@@ -212,13 +212,15 @@ const StashViewerTab = forwardRef<HTMLDivElement, Record<string, never>>(functio
       const returned = pickReturnedTab(payload, tabIndex);
       if (returned) {
         console.log('[Stash] Active tab items count:', returned.items.length);
+        // Apply tab-level pricing from tab name (e.g. "~price 12 chaos")
+        returned.items = applyTabLevelPricing(returned.items, returned.name);
         if (returned.items.length > 0) {
           const sample = returned.items[0];
           console.log('[Stash] Sample item fields:', {
             id: sample.id, fingerprint: sample.fingerprint, name: sample.name,
             estimatedPrice: sample.estimatedPrice, listedPrice: sample.listedPrice,
             priceEvaluation: sample.priceEvaluation, priceDeltaChaos: sample.priceDeltaChaos,
-            currency: sample.currency,
+            currency: sample.currency, stackSize: sample.stackSize,
           });
         }
         setActiveTab(returned);
