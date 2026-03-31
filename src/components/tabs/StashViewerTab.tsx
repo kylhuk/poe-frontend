@@ -227,43 +227,51 @@ const StashViewerTab = forwardRef<HTMLDivElement, Record<string, never>>(functio
   const [maxThreshold, setMaxThreshold] = useState(8);
   const [maxAgeDays, setMaxAgeDays] = useState(7);
 
-  const runValuation = useCallback(async (scanId: string) => {
-    setValuationPhase('running');
+  /** Fetch existing valuation results (no computation) */
+  const fetchValuationResults = useCallback(async () => {
     try {
-      const valResult = await api.startStashValuations({
-        scanId,
-        structuredMode: true,
-        minThreshold,
-        maxThreshold,
-        maxAgeDays,
-      });
+      const valResult = await api.getStashValuationsResult();
       setValuationResult(valResult);
-      setValuationPhase('done');
-
-      // Debug: log what the valuation API returned
-      console.log('[Stash] Valuation response keys:', Object.keys(valResult));
+      console.log('[Stash] Valuation result keys:', Object.keys(valResult));
       console.log('[Stash] Valuation items count:', valResult.items?.length ?? 0);
-      if (valResult.items?.length) {
-        console.log('[Stash] First 3 valuation items:', valResult.items.slice(0, 3));
-      }
-
-      // Merge valuation pricing into active tab items
       if (valResult.items?.length) {
         setActiveTab(prev => {
           if (!prev) return prev;
-          return {
-            ...prev,
-            items: mergeValuationIntoItems(prev.items, valResult.items),
-          };
+          return { ...prev, items: mergeValuationIntoItems(prev.items, valResult.items) };
         });
       }
+    } catch (err) {
+      console.warn('[Stash] No existing valuation results:', err instanceof Error ? err.message : err);
+    }
+  }, []);
 
+  /** Start a new valuation computation and poll until done */
+  const runValuation = useCallback(async () => {
+    setValuationPhase('running');
+    try {
+      await api.startStashValuationsNew();
+      // Poll valuation status
+      const poll = async (): Promise<void> => {
+        const vs = await api.getStashValuationsStatus();
+        if (vs.status === 'published' || vs.status === 'idle') {
+          return;
+        }
+        if (vs.status === 'failed') {
+          throw new Error(vs.error ?? 'Valuation failed');
+        }
+        await new Promise(r => setTimeout(r, 1500));
+        return poll();
+      };
+      await poll();
+      // Fetch final results
+      await fetchValuationResults();
+      setValuationPhase('done');
       toast.success('Valuations complete');
     } catch (valErr) {
       setValuationPhase('failed');
       toast.error(valErr instanceof Error ? valErr.message : 'Valuation failed');
     }
-  }, [minThreshold, maxThreshold, maxAgeDays]);
+  }, [fetchValuationResults]);
 
   const valuationResultRef = React.useRef(valuationResult);
   valuationResultRef.current = valuationResult;
