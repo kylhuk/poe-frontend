@@ -1,72 +1,48 @@
-## Maximize Stash Viewer: Valuations, History, Price Overlay
+
+
+## Fix Stash Valuation: Use `chaosMedian`, Compute Evaluation Client-Side, Render Affix Fallbacks & Day Series
 
 ### Problem
+1. `mergeValuationIntoItems` ignores `chaosMedian` — the actual price field from the API
+2. `priceEvaluation` from the backend is unreliable — must compute it client-side based on listed vs median price delta percentage
+3. When only `affixFallbackMedians` exist (no `chaosMedian`), should show affix list in tooltip but NOT show evaluation coloring
+4. `daySeries` per-item history is never rendered in the tooltip
+5. `PoeItem` type lacks `chaosMedian`, `daySeries`, and `affixFallbackMedians` fields
 
-The API provides rich pricing data and item history, but the frontend:
-
-1. **Discards valuation results** — stores them in state but never merges them into displayed items
-2. **No standalone "Valuate" button** — forces a full rescan just to re-price
-3. **No threshold configuration** — hardcoded values (0, 99999, 7 days)
-4. **No price overlay on cells** — only a faint background tint; no visible price text on the grid
-5. **Item history is wired but unreachable** — `openHistory` exists but nothing calls it; the dialog is built but no UI triggers it
-6. **Valuation day-series data unused** — API returns `daySeries` (historical price trend) and `affixFallbackMedians` but they're ignored
-
-### What the API gives us (already implemented, just not visualized)
-
-
-| Endpoint                             | Unused data                                                                                                                  |
-| ------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------- |
-| `/stash/scan/valuations`             | Returns `items[]` with pricing fields, `daySeries[]` sparkline data, `affixFallbackMedians[]`, `chaosMedian`                 |
-| `/stash/items/{fingerprint}/history` | Full price history per item — already has a dialog built, just no trigger                                                    |
-| `/stash/tabs`                        | Items already carry `estimatedPrice`, `listedPrice`, `priceDeltaChaos`, `priceDeltaPercent`, `priceEvaluation` when valuated |
-
+### Rules for evaluation (computed in frontend)
+- Compare `listedPrice` vs `chaosMedian` (mapped to `estimatedPrice`)
+- If no `chaosMedian` → no evaluation (even if `affixFallbackMedians` exist)
+- Within 10% delta → `well_priced` (green)
+- Within 20% delta → `could_be_better` (yellow)
+- Beyond 20% → `mispriced` (red)
 
 ### Plan
 
-#### 1. Add "Valuate" button + threshold config (`StashViewerTab.tsx`)
+#### 1. Extend `PoeItem` type (`src/types/api.ts`)
+- Add `chaosMedian?: number | null`, `daySeries?: StashScanValuationDaySeries[]`, `affixFallbackMedians?: StashScanValuationAffixFallback[]`
 
-- Add a "Valuate" button next to "Scan" that calls `startStashValuations` using the existing `publishedScanId` — no rescan needed
-- Add a collapsible settings row with three inputs: Min Threshold (default 4), Max Threshold (default 8), Max Age Days (default 7)
-- Store threshold values in component state, pass to both auto-valuation (after scan) and manual valuation
+#### 2. Fix merge + add client-side evaluation (`src/components/tabs/StashViewerTab.tsx`)
+- In `mergeValuationIntoItems`: read `match.chaosMedian` or `match.chaos_median` → set as `estimatedPrice`
+- Copy `daySeries` and `affixFallbackMedians` onto matched items
+- Add helper `computeEvaluation(listedPrice, estimatedPrice)`: computes delta %, returns evaluation string or undefined
+- Call `computeEvaluation` during merge to set `priceEvaluation` — ignore backend's evaluation entirely
+- If `chaosMedian` is null/0 but `affixFallbackMedians` exist, set `estimatedPrice` to 0, `priceEvaluation` to undefined (manual check)
 
-#### 2. Merge valuation results into items (`StashViewerTab.tsx`)
+#### 3. Update tooltip (`src/components/stash/ItemTooltip.tsx`)
+- Replace "Estimated" label with "Median"
+- When `item.affixFallbackMedians` has entries and no `estimatedPrice`, render a list: each affix name + its `chaosMedian`
+- When `item.daySeries` has ≥2 points, render inline `PriceSparkline`
+- Only show evaluation label when `priceEvaluation` is set (which only happens when `chaosMedian` existed)
 
-- After valuation completes, match returned `items[]` to `activeTab.items` by `id` or `fingerprint`
-- Copy pricing fields (`estimatedPrice`, `listedPrice`, `priceDeltaChaos`, `priceDeltaPercent`, `priceEvaluation`, `currency`, `estimatedPriceConfidence`) onto each matching `PoeItem`
-- Update `activeTab` state so the grid re-renders with pricing data
-- This makes the existing `ItemTooltip` pricing section and `StashItemCell` background tints work automatically
-
-#### 3. Add price badge overlay on grid cells (`StashItemCell.tsx`)
-
-- Show a small price badge at the bottom of each cell when `estimatedPrice` is set (e.g., "42c")
-- Color the badge border/background based on `priceEvaluation`: green (well_priced), amber (could_be_better), red (mispriced)
-- For quad tabs, use smaller font; for normal tabs, also show delta percentage as a tiny label
-- Add a subtle pulsing glow on mispriced items to draw attention
-
-#### 4. Wire up item history dialog (`StashItemCell.tsx` + `StashViewerTab.tsx`)
-
-- Add a click handler on `StashItemCell` that calls `openHistory` when the item has a `fingerprint`
-- The history dialog already exists — just needs the trigger
-- Add a small sparkline in the history dialog using `PriceSparkline` component (already exists in codebase)
-
-#### 5. Show valuation sparkline per-tab (`StashViewerTab.tsx`)
-
-- When valuation result includes `daySeries`, render a `PriceSparkline` in the header area showing the tab's median price trend
-- Show `affixFallbackMedians` as a small table in the valuation summary if present
+#### 4. Cell overlay stays mostly the same (`StashItemCell.tsx`)
+- Already guards on `hasPrice = estimatedPrice > 0` — will naturally hide badges for affix-only items
+- `hasEval` already checks `hasPrice && !!priceEvaluation` — no change needed
 
 ### Files to change
 
+| File | Change |
+|------|--------|
+| `src/types/api.ts` | Add 3 fields to `PoeItem` |
+| `src/components/tabs/StashViewerTab.tsx` | Fix merge to use `chaosMedian`, add `computeEvaluation`, copy `daySeries`/`affixFallbackMedians` |
+| `src/components/stash/ItemTooltip.tsx` | Render affix fallbacks list, inline sparkline, rename label to "Median" |
 
-| File                                          | Changes                                                                                                            |
-| --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
-| `src/components/tabs/StashViewerTab.tsx`      | Add Valuate button, threshold config UI, merge valuation→items logic, wire click→history, show daySeries sparkline |
-| `src/components/stash/StashItemCell.tsx`      | Add price badge overlay, evaluation color border, click handler for history                                        |
-| `src/components/stash/NormalGrid.tsx`         | Pass `onItemClick` callback through to cells                                                                       |
-| `src/components/stash/SpecialGrid.tsx`        | Pass `onItemClick` callback through to cells                                                                       |
-| `src/components/stash/SpecialLayoutGrid.tsx`  | Pass `onItemClick` callback through to cells                                                                       |
-| `src/components/tabs/StashViewerTab.test.tsx` | Add tests for Valuate button and threshold controls                                                                |
-
-
-### No API changes needed
-
-Everything described above uses existing endpoints and response fields.
