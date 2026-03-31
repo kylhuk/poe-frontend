@@ -334,11 +334,6 @@ const StashViewerTab = forwardRef<HTMLDivElement, Record<string, never>>(functio
         const stashStatus = await pollStatus();
         if (stashStatus.connected) {
           await loadTab(0);
-          // Auto-trigger valuation if a published scan already exists
-          const scanId = stashStatus.publishedScanId ?? stashStatus.scanStatus?.publishedScanId;
-          if (scanId) {
-            await runValuation(scanId);
-          }
         }
       } catch (err: unknown) {
         setError(err instanceof Error ? err.message : 'Stash feature unavailable');
