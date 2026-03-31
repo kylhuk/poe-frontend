@@ -80,7 +80,7 @@ export default function StashItemCell({ item, isQuad, style, className, onItemCl
           {/* Stack size badge */}
           {item.stackSize != null && item.stackSize > 1 && (
             <span className={cn(
-              'absolute top-0 left-0.5 font-mono font-bold text-foreground',
+              'absolute top-0 left-0.5 z-10 font-mono font-bold text-foreground',
               'drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)] drop-shadow-[0_0_4px_rgba(0,0,0,0.8)]',
               isQuad ? 'text-[5px]' : 'text-[9px]',
             )}>

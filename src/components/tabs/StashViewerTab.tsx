@@ -83,6 +83,31 @@ function getSpecialLayout(tab: StashTab): SpecialLayout | null {
     ?? null;
 }
 
+/**
+ * Parse PoE tab-name pricing syntax like "~price 12 chaos" or "~b/o 5 divine".
+ * Returns { price, currency } or null if the tab name doesn't contain pricing.
+ */
+function parseTabNamePrice(tabName: string): { price: number; currency: string } | null {
+  const match = tabName.match(/~(?:price|b\/o)\s+([\d.]+)\s+(chaos|divine|div|exalted|exa)/i);
+  if (!match) return null;
+  const price = parseFloat(match[1]);
+  if (isNaN(price) || price <= 0) return null;
+  const rawCur = match[2].toLowerCase();
+  const currency = (rawCur === 'divine' || rawCur === 'div') ? 'div'
+    : (rawCur === 'exalted' || rawCur === 'exa') ? 'exa' : 'chaos';
+  return { price, currency };
+}
+
+/** Apply tab-level listed price to items that don't have their own listedPrice */
+function applyTabLevelPricing(items: PoeItem[], tabName: string): PoeItem[] {
+  const tabPrice = parseTabNamePrice(tabName);
+  if (!tabPrice) return items;
+  return items.map(item => {
+    if (item.listedPrice != null) return item;
+    return { ...item, listedPrice: tabPrice.price, currency: tabPrice.currency };
+  });
+}
+
 /** Merge valuation items into displayed PoeItems by id or fingerprint */
 function mergeValuationIntoItems(items: PoeItem[], valItems: Record<string, unknown>[]): PoeItem[] {
   const byFingerprint = new Map<string, Record<string, unknown>>();

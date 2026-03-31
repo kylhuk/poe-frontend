@@ -167,8 +167,8 @@ export default function ItemTooltip({ item }: ItemTooltipProps) {
           <div className="text-muted-foreground text-[10px] italic">{item.descrText}</div>
         )}
 
-        {/* Price evaluation section */}
-        {item.priceEvaluation && (
+        {/* Price evaluation section — only when a real estimate exists */}
+        {item.estimatedPrice != null && item.estimatedPrice > 0 && (
           <>
             <div className="poe-tooltip-separator" />
             <div className="space-y-0.5 pt-0.5">
@@ -197,9 +197,21 @@ export default function ItemTooltip({ item }: ItemTooltipProps) {
                   </span>
                 </div>
               )}
-              <div className={cn('text-[10px] font-semibold', EVAL_COLOR[item.priceEvaluation])}>
-                {EVAL_LABEL[item.priceEvaluation]}
-              </div>
+              {item.priceEvaluation && (
+                <div className={cn('text-[10px] font-semibold', EVAL_COLOR[item.priceEvaluation])}>
+                  {EVAL_LABEL[item.priceEvaluation]}
+                </div>
+              )}
+            </div>
+          </>
+        )}
+        {/* Show listed price even without estimate (tab-level pricing) */}
+        {(item.estimatedPrice == null || item.estimatedPrice <= 0) && item.listedPrice != null && (
+          <>
+            <div className="poe-tooltip-separator" />
+            <div className="flex justify-between pt-0.5">
+              <span className="text-muted-foreground">Listed</span>
+              <span className="font-mono">{item.listedPrice} {cur}</span>
             </div>
           </>
         )}
