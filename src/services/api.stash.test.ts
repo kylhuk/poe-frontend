@@ -63,11 +63,6 @@ describe('stash api methods', () => {
       .mockResolvedValueOnce({
         ok: true,
         status: 200,
-        json: async () => ({ primary_league: 'Mirage' }),
-      } as Response)
-      .mockResolvedValueOnce({
-        ok: true,
-        status: 200,
         json: async () => ({
           status: 'running',
           activeScanId: 'scan-2',
@@ -83,6 +78,11 @@ describe('stash api methods', () => {
           },
           error: null,
         }),
+      } as Response)
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({ primary_league: 'Mirage' }),
       } as Response)
       .mockResolvedValueOnce({
         ok: true,
