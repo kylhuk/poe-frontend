@@ -904,23 +904,9 @@ export const api: ApiService = {
   },
 
   async startStashScan() {
-    const league = await primaryLeague();
-    const startPath = `/api/v1/stash/scan/start?league=${encodeURIComponent(league)}&realm=pc`;
-    const legacyPath = `/api/v1/stash/scan?league=${encodeURIComponent(league)}&realm=pc`;
-    try {
-      return await request<StashScanStartResponse>(startPath, {
-        method: 'POST',
-      }, {
-        skipErrorCodes: ['route_not_found'],
-      });
-    } catch (error) {
-      if (!isMissingRouteError(error)) {
-        throw error;
-      }
-      return request<StashScanStartResponse>(legacyPath, {
-        method: 'POST',
-      });
-    }
+    return request<StashScanStartResponse>('/api/v1/stash/scan/start', {
+      method: 'POST',
+    });
   },
 
   async getStashScanStatus() {
