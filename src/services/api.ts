@@ -841,6 +841,16 @@ function normalizeMlAutomationHistory(payload: unknown): MlAutomationHistory {
   };
 }
 
+const EMPTY_SCAN_STATUS_TEMPLATE: StashScanStatus = {
+  status: 'idle',
+  activeScanId: null,
+  publishedScanId: null,
+  startedAt: null,
+  updatedAt: null,
+  publishedAt: null,
+  error: null,
+  progress: { tabsProcessed: 0, tabsTotal: 0, itemsProcessed: 0, itemsTotal: 0 },
+};
 
 export const api: ApiService = {
   async getHealthz() {
