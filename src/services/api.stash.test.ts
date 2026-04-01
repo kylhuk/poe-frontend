@@ -60,6 +60,7 @@ describe('stash api methods', () => {
   test('fetches stash scan status and item history', async () => {
     const fetchMock = vi
       .fn()
+      // 1st call: getStashScanStatus -> /api/v1/stash/scan/status (no league)
       .mockResolvedValueOnce({
         ok: true,
         status: 200,
@@ -79,11 +80,13 @@ describe('stash api methods', () => {
           error: null,
         }),
       } as Response)
+      // 2nd call: getStashItemHistory -> primaryLeague() contract fetch
       .mockResolvedValueOnce({
         ok: true,
         status: 200,
         json: async () => ({ primary_league: 'Mirage' }),
       } as Response)
+      // 3rd call: getStashItemHistory -> /api/v1/stash/items/{fp}/history
       .mockResolvedValueOnce({
         ok: true,
         status: 200,
