@@ -593,16 +593,6 @@ export interface MlLeagueStatusResponse {
 }
 
 // ========== Stash Scan Valuations ==========
-export interface StashScanValuationsRequest {
-  scanId: string;
-  stashId?: string;
-  minThreshold: number;
-  maxThreshold: number;
-  maxAgeDays: number;
-  itemId?: string;
-  structuredMode?: boolean;
-}
-
 export interface StashScanValuationDaySeries {
   date: string;
   chaosMedian: number | null;
