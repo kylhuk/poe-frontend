@@ -174,7 +174,16 @@ const Index = () => {
             <h1 className="text-lg font-display tracking-wide gold-shimmer-text">PoE Dashboard</h1>
           </div>
           <div className="flex items-center gap-3">
-            <span className="text-xs text-muted-foreground font-mono hidden sm:inline"></span>
+            <Select value={league} onValueChange={setLeague}>
+              <SelectTrigger className="h-8 w-[140px] text-xs border-border bg-card">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {knownLeagues.map((l) => (
+                  <SelectItem key={l} value={l} className="text-xs">{l}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <ApiErrorPanel />
             <UserMenu />
           </div>
