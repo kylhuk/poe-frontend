@@ -344,16 +344,15 @@ const StashViewerTab = forwardRef<HTMLDivElement, Record<string, never>>(functio
       try {
         const stashStatus = await pollStatus();
         if (stashStatus.connected) {
+          // loadTab now fetches both scan result and valuations in parallel
           await loadTab(0);
-          // Always fetch existing valuation results on load (instant, no computation)
-          await fetchValuationResults();
         }
       } catch (err: unknown) {
         setError(err instanceof Error ? err.message : 'Stash feature unavailable');
         setStatus('degraded');
       }
     })();
-  }, [pollStatus, loadTab, fetchValuationResults]);
+  }, [pollStatus, loadTab]);
 
   useEffect(() => {
     if (!scanBusy) {
