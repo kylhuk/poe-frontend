@@ -502,11 +502,13 @@ function normalizePoeItem(raw: unknown): PoeItem {
     flavourText: Array.isArray(item.flavourText ?? item.flavour_text) ? (item.flavourText ?? item.flavour_text) as string[] : undefined,
     sockets: Array.isArray(item.sockets) ? item.sockets as PoeItem['sockets'] : undefined,
     listedPrice: optNumber(item.listedPrice ?? item.listed_price),
-    estimatedPrice: optNumber(item.estimatedPrice ?? item.estimated_price),
-    estimatedPriceConfidence: optNumber(item.estimatedPriceConfidence ?? item.estimated_price_confidence),
-    priceDeltaChaos: optNumber(item.priceDeltaChaos ?? item.price_delta_chaos),
-    priceDeltaPercent: optNumber(item.priceDeltaPercent ?? item.price_delta_percent),
-    priceEvaluation: optString(item.priceEvaluation ?? item.price_evaluation) as PoeItem['priceEvaluation'],
+    // Pricing fields intentionally omitted from scan result normalization.
+    // They are only populated via mergeValuationIntoItems from the /valuations/result endpoint.
+    estimatedPrice: undefined,
+    estimatedPriceConfidence: undefined,
+    priceDeltaChaos: undefined,
+    priceDeltaPercent: undefined,
+    priceEvaluation: undefined,
     currency: optString(item.currency) ?? undefined,
   };
 }
