@@ -234,22 +234,16 @@ export async function loadAllStashItems(
   const cached = getCachedItems(scanId);
   if (cached) return cached;
 
-  const allItems: PoeItem[] = [];
-  const total = tabsMeta.length;
+  onProgress?.({ loaded: 0, total: tabsMeta.length });
 
-  for (let i = 0; i < total; i++) {
-    onProgress?.({ loaded: i, total });
-    try {
-      const resp = await api.getStashTabs(tabsMeta[i].tabIndex);
-      const requestedTab = pickReturnedTab(resp, tabsMeta[i].tabIndex);
-      if (requestedTab) {
-        allItems.push(...requestedTab.items);
-      }
-    } catch {
-      // Skip failed tabs
-    }
+  // New API returns all tabs in one call
+  const resp = await api.getStashScanResult();
+  const allItems: PoeItem[] = [];
+  for (const tab of resp.stashTabs) {
+    allItems.push(...tab.items);
   }
-  onProgress?.({ loaded: total, total });
+
+  onProgress?.({ loaded: tabsMeta.length, total: tabsMeta.length });
 
   setCachedItems(scanId, allItems);
   return allItems;
