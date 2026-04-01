@@ -16,7 +16,7 @@ import type {
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import {
-  ChevronDown, Copy, Loader2, History, Coins, Settings2, type LucideIcon,
+  ChevronDown, Copy, Loader2, History, Coins, type LucideIcon,
 } from 'lucide-react';
 import { RenderState } from '@/components/shared/RenderState';
 import NormalGrid from '@/components/stash/NormalGrid';
