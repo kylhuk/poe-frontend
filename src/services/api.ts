@@ -165,12 +165,9 @@ function formatApiErrorDetail(details: unknown): string | null {
 }
 
 async function primaryLeague(): Promise<string> {
-  if (cachedPrimaryLeague) {
-    return cachedPrimaryLeague;
-  }
-  const payload = await request<ContractPayload>('/api/v1/ops/contract');
-  cachedPrimaryLeague = payload.primary_league || 'Mirage';
-  return cachedPrimaryLeague;
+  // Use the user-selected league from the top-level league selector
+  const { getSelectedLeague } = await import('@/services/league');
+  return getSelectedLeague();
 }
 
 export async function getAnalyticsIngestion() {
