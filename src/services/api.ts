@@ -583,7 +583,7 @@ function normalizeStashTabsResponse(payload: unknown): StashTabsResponse {
 
   // New raw PoE schema: { stash: {single tab object}, tabs: [...], items: [...], numTabs }
   if (source.stash && typeof source.stash === 'object' && !Array.isArray(source.stash)) {
-    const tab = normalizeStashTab(source.stash, requestedTabIndex ?? 0);
+    const tab = normalizeStashTab(source.stash, 0);
     // Merge top-level items if the stash object itself had none
     if (tab.items.length === 0 && topLevelItems.length > 0) {
       tab.items = topLevelItems;
