@@ -113,6 +113,7 @@ async function request<T>(path: string, init?: RequestInit, options: RequestOpti
     response = await fetch(url, {
       ...init,
       credentials: 'include',
+      signal: init?.signal,
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`,
@@ -121,6 +122,9 @@ async function request<T>(path: string, init?: RequestInit, options: RequestOpti
       },
     });
   } catch (err) {
+    if (err instanceof DOMException && err.name === 'AbortError') {
+      throw err;
+    }
     const rawMessage = err instanceof Error ? err.message : 'Network error';
     const detail = `${method} ${path}: ${rawMessage}`;
     logApiError({ method, path, errorCode: 'network_error', message: rawMessage });
