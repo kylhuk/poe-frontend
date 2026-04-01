@@ -1023,11 +1023,12 @@ export const api: ApiService = {
     }
   },
 
-  async getStashScanResult(tabIndex?: number) {
+  async getStashScanResult(tabIndex?: number, signal?: AbortSignal) {
     const league = await primaryLeague();
     const tabParam = tabIndex != null ? `&tabIndex=${tabIndex}` : '';
     const payload = await request<unknown>(
       `/api/v1/stash/scan/result?league=${encodeURIComponent(league)}&realm=pc${tabParam}`,
+      signal ? { signal } : undefined,
     );
     return normalizeStashTabsResponse(payload, tabIndex ?? undefined);
   },
@@ -1059,10 +1060,11 @@ export const api: ApiService = {
     );
   },
 
-  async getStashValuationsResult() {
+  async getStashValuationsResult(signal?: AbortSignal) {
     const league = await primaryLeague();
     return request<StashScanValuationsResponse>(
       `/api/v1/stash/scan/valuations/result?league=${encodeURIComponent(league)}&realm=pc`,
+      signal ? { signal } : undefined,
     );
   },
 
