@@ -13,7 +13,9 @@ import { LayoutDashboard, Server, BarChart3, Search, Grid3X3, MessageSquare, Tre
 import UserMenu from "@/components/UserMenu";
 import ApiErrorPanel from "@/components/ApiErrorPanel";
 import { useAuth, type UserRole } from "@/services/auth";
+import { useLeague } from "@/services/league";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 type TabDef = {
   id: string;
