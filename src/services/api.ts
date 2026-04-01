@@ -576,7 +576,7 @@ function normalizeTabsMeta(rawTabs: unknown[]): StashTabMeta[] {
   });
 }
 
-function normalizeStashTabsResponse(payload: unknown): StashTabsResponse {
+function normalizeStashTabsResponse(payload: unknown, requestedTabIndex?: number): StashTabsResponse {
   const source = asObject(payload);
   const rawTabsMeta = Array.isArray(source.tabs) ? source.tabs as unknown[] : [];
   const tabsMeta = normalizeTabsMeta(rawTabsMeta);
@@ -586,14 +586,14 @@ function normalizeStashTabsResponse(payload: unknown): StashTabsResponse {
 
   // New raw PoE schema: { stash: {single tab object}, tabs: [...], items: [...], numTabs }
   if (source.stash && typeof source.stash === 'object' && !Array.isArray(source.stash)) {
-    const tab = normalizeStashTab(source.stash, 0);
+    const tab = normalizeStashTab(source.stash, requestedTabIndex ?? 0);
     // Merge top-level items if the stash object itself had none
     if (tab.items.length === 0 && topLevelItems.length > 0) {
       tab.items = topLevelItems;
     }
     const effectiveTabsMeta = tabsMeta.length > 0
       ? tabsMeta
-      : [{ id: tab.id, tabIndex: 0, name: tab.name, type: tab.type }];
+      : [{ id: tab.id, tabIndex: requestedTabIndex ?? 0, name: tab.name, type: tab.type }];
     const numTabs = optNumber(source.numTabs ?? source.num_tabs) ?? effectiveTabsMeta.length;
     return {
       scanId: optString(source.scanId ?? source.scan_id),
@@ -609,6 +609,10 @@ function normalizeStashTabsResponse(payload: unknown): StashTabsResponse {
   // Legacy format: { stashTabs: [...] }
   const rawTabs = Array.isArray(source.stashTabs ?? source.stash_tabs) ? (source.stashTabs ?? source.stash_tabs) as unknown[] : [];
   const stashTabs = rawTabs.map((tab, index) => normalizeStashTab(tab, index));
+  // If only one tab returned and requestedTabIndex is set, override its returnedIndex
+  if (stashTabs.length === 1 && requestedTabIndex != null && stashTabs[0].returnedIndex == null) {
+    stashTabs[0].returnedIndex = requestedTabIndex;
+  }
   const effectiveTabsMeta = tabsMeta.length > 0
     ? tabsMeta
     : stashTabs.map((tab, index) => ({
@@ -837,6 +841,16 @@ function normalizeMlAutomationHistory(payload: unknown): MlAutomationHistory {
   };
 }
 
+const EMPTY_SCAN_STATUS_TEMPLATE: StashScanStatus = {
+  status: 'idle',
+  activeScanId: null,
+  publishedScanId: null,
+  startedAt: null,
+  updatedAt: null,
+  publishedAt: null,
+  error: null,
+  progress: { tabsProcessed: 0, tabsTotal: 0, itemsProcessed: 0, itemsTotal: 0 },
+};
 
 export const api: ApiService = {
   async getHealthz() {
@@ -995,13 +1009,13 @@ export const api: ApiService = {
         undefined,
         { skipErrorCodes: ['route_not_found'] },
       );
-      return normalizeStashTabsResponse(payload);
+      return normalizeStashTabsResponse(payload, tabIndex ?? undefined);
     } catch (err) {
       if (!isMissingRouteError(err)) throw err;
       const payload = await request<unknown>(
         `/api/v1/stash/tabs?league=${encodeURIComponent(league)}&realm=pc${tabParam}`,
       );
-      return normalizeStashTabsResponse(payload);
+      return normalizeStashTabsResponse(payload, tabIndex ?? undefined);
     }
   },
 
@@ -1011,7 +1025,7 @@ export const api: ApiService = {
     const payload = await request<unknown>(
       `/api/v1/stash/scan/result?league=${encodeURIComponent(league)}&realm=pc${tabParam}`,
     );
-    return normalizeStashTabsResponse(payload);
+    return normalizeStashTabsResponse(payload, tabIndex ?? undefined);
   },
 
   async startStashValuations(req: StashScanValuationsRequest) {
@@ -1050,9 +1064,19 @@ export const api: ApiService = {
 
   async getStashValuationsStatus() {
     const league = await primaryLeague();
-    return request<StashScanStatus>(
+    const raw = await request<Record<string, unknown>>(
       `/api/v1/stash/scan/valuations/status?league=${encodeURIComponent(league)}&realm=pc`,
     );
+    // Backend may return a status-shaped payload or a valuation-result-shaped payload.
+    // Normalise both into StashScanStatus so polling works either way.
+    if (typeof raw.status === 'string' && ['idle', 'running', 'publishing', 'published', 'failed'].includes(raw.status)) {
+      return raw as unknown as StashScanStatus;
+    }
+    // If payload has items/scanId but no status field, treat as completed
+    if (Array.isArray(raw.items) || raw.scanId || raw.scan_id) {
+      return { ...EMPTY_SCAN_STATUS_TEMPLATE, status: 'published' as const } as StashScanStatus;
+    }
+    return raw as unknown as StashScanStatus;
   },
 
   async getMessages() {

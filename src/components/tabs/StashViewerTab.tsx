@@ -2,8 +2,6 @@ import React, { forwardRef, useCallback, useEffect, useState } from 'react';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { api } from '@/services/api';
 import type {
   PoeItem,
@@ -18,7 +16,7 @@ import type {
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import {
-  ChevronDown, Copy, Loader2, History, Coins, Settings2, type LucideIcon,
+  ChevronDown, Copy, Loader2, History, Coins, type LucideIcon,
 } from 'lucide-react';
 import { RenderState } from '@/components/shared/RenderState';
 import NormalGrid from '@/components/stash/NormalGrid';
@@ -210,7 +208,6 @@ const StashViewerTab = forwardRef<HTMLDivElement, Record<string, never>>(functio
   const [tabMismatch, setTabMismatch] = useState<string | null>(null);
   const [status, setStatus] = useState<StashStatus['status'] | 'loading' | 'degraded'>('loading');
   const [schemaOpen, setSchemaOpen] = useState(false);
-  const [settingsOpen, setSettingsOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [publishedScanId, setPublishedScanId] = useState<string | null>(null);
   const [publishedAt, setPublishedAt] = useState<string | null>(null);
@@ -222,10 +219,8 @@ const StashViewerTab = forwardRef<HTMLDivElement, Record<string, never>>(functio
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyPayload, setHistoryPayload] = useState<StashItemHistoryResponse | null>(null);
 
-  // Threshold configuration
-  const [minThreshold, setMinThreshold] = useState(4);
-  const [maxThreshold, setMaxThreshold] = useState(8);
-  const [maxAgeDays, setMaxAgeDays] = useState(7);
+  // Race guard for tab loading — incremented on each loadTab call
+  const loadTokenRef = React.useRef(0);
 
   /** Fetch existing valuation results (no computation) */
   const fetchValuationResults = useCallback(async () => {
@@ -277,18 +272,27 @@ const StashViewerTab = forwardRef<HTMLDivElement, Record<string, never>>(functio
   valuationResultRef.current = valuationResult;
 
   const loadTab = useCallback(async (tabIndex: number) => {
+    const token = ++loadTokenRef.current;
     setTabLoading(true);
     setTabMismatch(null);
     try {
-      const payload = await api.getStashScanResult(tabIndex);
+      // Fetch tab data and valuations in parallel
+      const [payload, valResult] = await Promise.all([
+        api.getStashScanResult(tabIndex),
+        api.getStashValuationsResult().catch(() => null),
+      ]);
+      // Race guard: discard if a newer loadTab was fired
+      if (token !== loadTokenRef.current) return;
+
       console.log('[Stash] Tab payload keys:', Object.keys(payload));
       const returned = pickReturnedTab(payload, tabIndex);
       if (returned) {
         console.log('[Stash] Active tab items count:', returned.items.length);
         returned.items = applyTabLevelPricing(returned.items, returned.name);
-        const currentValuation = valuationResultRef.current;
-        if (currentValuation?.items?.length) {
-          returned.items = mergeValuationIntoItems(returned.items, currentValuation.items);
+        // Merge valuations immediately
+        if (valResult?.items?.length) {
+          returned.items = mergeValuationIntoItems(returned.items, valResult.items);
+          setValuationResult(valResult);
         }
         if (returned.items.length > 0) {
           const sample = returned.items[0];
@@ -310,9 +314,10 @@ const StashViewerTab = forwardRef<HTMLDivElement, Record<string, never>>(functio
         setTabsMeta(payload.tabsMeta);
       }
     } catch (err) {
+      if (token !== loadTokenRef.current) return;
       toast.error(err instanceof Error ? err.message : 'Failed to load tab');
     } finally {
-      setTabLoading(false);
+      if (token === loadTokenRef.current) setTabLoading(false);
     }
   }, []);
 
@@ -339,16 +344,15 @@ const StashViewerTab = forwardRef<HTMLDivElement, Record<string, never>>(functio
       try {
         const stashStatus = await pollStatus();
         if (stashStatus.connected) {
+          // loadTab now fetches both scan result and valuations in parallel
           await loadTab(0);
-          // Always fetch existing valuation results on load (instant, no computation)
-          await fetchValuationResults();
         }
       } catch (err: unknown) {
         setError(err instanceof Error ? err.message : 'Stash feature unavailable');
         setStatus('degraded');
       }
     })();
-  }, [pollStatus, loadTab, fetchValuationResults]);
+  }, [pollStatus, loadTab]);
 
   useEffect(() => {
     if (!scanBusy) {
@@ -542,51 +546,8 @@ const StashViewerTab = forwardRef<HTMLDivElement, Record<string, never>>(functio
         </div>
       </div>
 
-      {/* Threshold configuration */}
-      <Collapsible open={settingsOpen} onOpenChange={setSettingsOpen}>
-        <CollapsibleTrigger asChild>
-          <Button variant="ghost" size="sm" className="text-xs text-muted-foreground gap-1.5">
-            <Settings2 className={cn('h-3 w-3')} />
-            Valuation Settings
-            <ChevronDown className={cn('h-3 w-3 transition-transform', settingsOpen && 'rotate-180')} />
-          </Button>
-        </CollapsibleTrigger>
-        <CollapsibleContent>
-          <div className="flex items-end gap-4 flex-wrap mt-2 rounded border border-gold-dim/20 bg-card/40 p-3">
-            <div className="space-y-1">
-              <Label className="text-[10px] text-muted-foreground">Min Threshold (chaos)</Label>
-              <Input
-                type="number"
-                value={minThreshold}
-                onChange={e => setMinThreshold(Number(e.target.value))}
-                className="w-24 h-8 text-xs"
-                min={0}
-              />
-            </div>
-            <div className="space-y-1">
-              <Label className="text-[10px] text-muted-foreground">Max Threshold (chaos)</Label>
-              <Input
-                type="number"
-                value={maxThreshold}
-                onChange={e => setMaxThreshold(Number(e.target.value))}
-                className="w-24 h-8 text-xs"
-                min={0}
-              />
-            </div>
-            <div className="space-y-1">
-              <Label className="text-[10px] text-muted-foreground">Max Age (days)</Label>
-              <Input
-                type="number"
-                value={maxAgeDays}
-                onChange={e => setMaxAgeDays(Number(e.target.value))}
-                className="w-24 h-8 text-xs"
-                min={1}
-                max={90}
-              />
-            </div>
-          </div>
-        </CollapsibleContent>
-      </Collapsible>
+
+
 
       {/* Tab navigation */}
       <div className="flex items-end gap-0 flex-wrap">
