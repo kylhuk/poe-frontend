@@ -1,4 +1,4 @@
-import type { PoeItem, StashTab, StashTabMeta, StashItemHistoryEntry } from '@/types/api';
+import type { PoeItem, StashTabMeta, StashItemHistoryEntry } from '@/types/api';
 import { api } from './api';
 import type { SparklinePoint } from '@/components/economy/PriceSparkline';
 
