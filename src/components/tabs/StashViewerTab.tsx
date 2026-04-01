@@ -275,18 +275,27 @@ const StashViewerTab = forwardRef<HTMLDivElement, Record<string, never>>(functio
   valuationResultRef.current = valuationResult;
 
   const loadTab = useCallback(async (tabIndex: number) => {
+    const token = ++loadTokenRef.current;
     setTabLoading(true);
     setTabMismatch(null);
     try {
-      const payload = await api.getStashScanResult(tabIndex);
+      // Fetch tab data and valuations in parallel
+      const [payload, valResult] = await Promise.all([
+        api.getStashScanResult(tabIndex),
+        api.getStashValuationsResult().catch(() => null),
+      ]);
+      // Race guard: discard if a newer loadTab was fired
+      if (token !== loadTokenRef.current) return;
+
       console.log('[Stash] Tab payload keys:', Object.keys(payload));
       const returned = pickReturnedTab(payload, tabIndex);
       if (returned) {
         console.log('[Stash] Active tab items count:', returned.items.length);
         returned.items = applyTabLevelPricing(returned.items, returned.name);
-        const currentValuation = valuationResultRef.current;
-        if (currentValuation?.items?.length) {
-          returned.items = mergeValuationIntoItems(returned.items, currentValuation.items);
+        // Merge valuations immediately
+        if (valResult?.items?.length) {
+          returned.items = mergeValuationIntoItems(returned.items, valResult.items);
+          setValuationResult(valResult);
         }
         if (returned.items.length > 0) {
           const sample = returned.items[0];
@@ -308,9 +317,10 @@ const StashViewerTab = forwardRef<HTMLDivElement, Record<string, never>>(functio
         setTabsMeta(payload.tabsMeta);
       }
     } catch (err) {
+      if (token !== loadTokenRef.current) return;
       toast.error(err instanceof Error ? err.message : 'Failed to load tab');
     } finally {
-      setTabLoading(false);
+      if (token === loadTokenRef.current) setTabLoading(false);
     }
   }, []);
 
